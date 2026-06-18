@@ -126,29 +126,6 @@ else
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
                     </a>
                 </div>
-                <p class="lp-hero-actions-note">
-                    Cliente: publica grátis, paga <strong>R$3,99</strong> só ao contratar.
-                    Profissional: <strong>12% + R$2,99</strong> só sobre o que receber.
-                </p>
-
-                <div class="lp-hero-stats">
-                    <div class="lp-hero-stat">
-                        <div class="num">@FormatNumber(stats?.TotalProjects ?? 0)</div>
-                        <div class="lbl">Projetos publicados</div>
-                    </div>
-                    <div class="lp-hero-stat">
-                        <div class="num">@FormatNumber(stats?.ActiveFreelancers ?? 0)</div>
-                        <div class="lbl">Freelancers cadastrados</div>
-                    </div>
-                    <div class="lp-hero-stat">
-                        <div class="num">@FormatNumber(stats?.CompletedProjects ?? 0)</div>
-                        <div class="lbl">Projetos concluídos</div>
-                    </div>
-                    <div class="lp-hero-stat">
-                        <div class="num">@categoryCount+</div>
-                        <div class="lbl">Categorias</div>
-                    </div>
-                </div>
             </div>
         </div>
     </section>
@@ -513,11 +490,8 @@ else
 
 @code {
     private IEnumerable<CategoryDto>? categories;
-    private PublicStatsDto? stats;
     private ClientStatsDto? clientStats;
     private FreelancerStatsDto? freelancerStats;
-    private int categoryCount;
-    private int projectCount;
     private string heroHint = string.Empty;
 
     // Mantemos o mesmo conteúdo do JSON-LD FAQPage no markup visível —
@@ -570,27 +544,11 @@ else
         }
         else
         {
-            // Landing: 3 chamadas independentes em paralelo.
-            var categoriesTask = State.GetCategoriesAsync();
-            var projectsTask = SafeAsync(() => Api.SearchProjectsAsync(pageSize: 6));
-            var statsTask = SafeAsync(() => Api.GetPublicStatsAsync());
-
-            await Task.WhenAll(categoriesTask, projectsTask, statsTask);
-
-            categories = categoriesTask.Result;
-            var result = projectsTask.Result;
-            stats = statsTask.Result;
-
-            categoryCount = categories?.Count() ?? 0;
-            projectCount = result?.TotalCount ?? 0;
+            // Landing anônima usa só a lista de categorias (renderizada na seção Categorias).
+            // PublicStats + busca de projetos foram removidos junto com o hero-stats —
+            // mostrar "0 projetos" mina a conversão e a strip não está mais no markup.
+            categories = await State.GetCategoriesAsync();
         }
-    }
-
-    /// <summary>Encapsula uma chamada async de forma que falhas não interrompam o Task.WhenAll.</summary>
-    private static async Task<T?> SafeAsync<T>(Func<Task<T?>> call)
-    {
-        try { return await call(); }
-        catch { return default; }
     }
 
     private void OnStateChanged() => InvokeAsync(StateHasChanged);
@@ -601,13 +559,6 @@ else
         var qs = string.IsNullOrEmpty(hint) ? string.Empty : $"&hint={Uri.EscapeDataString(hint)}";
         Navigation.NavigateTo($"/register?role=client{qs}");
     }
-
-    private static string FormatNumber(int n) => n switch
-    {
-        >= 1_000_000 => $"{n / 1_000_000d:0.#}M",
-        >= 1_000 => $"{n / 1_000d:0.#}k",
-        _ => n.ToString()
-    };
 
     public void Dispose() => State.OnChange -= OnStateChanged;
 }

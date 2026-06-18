@@ -1406,30 +1406,6 @@ select.form-control { appearance: auto; }
 }
 .lp-hero-secondary svg { vertical-align: -2px; margin-left: 0.25rem; }
 
-/* Hero stats */
-.lp-hero-stats {
-    display: flex;
-    justify-content: center;
-    gap: 4rem;
-}
-.lp-hero-stat { text-align: center; }
-.lp-hero-stat .num {
-    font-family: var(--font-display);
-    font-size: 2.5rem;
-    font-weight: 900;
-    background: var(--gradient-full);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-    line-height: 1;
-}
-.lp-hero-stat .lbl {
-    font-size: 0.85rem;
-    color: rgba(255,255,255,0.4);
-    margin-top: 0.25rem;
-    font-weight: 500;
-}
-
 /* ── Trust bar ────────────────────────────────────────────────────── */
 .lp-trust {
     padding: 2.5rem 0;
@@ -1759,10 +1735,8 @@ select.form-control { appearance: auto; }
 @media (max-width: 768px) {
     .lp-hero h1 { font-size: 2.5rem; }
     .lp-hero-sub { font-size: 1rem; }
-    .lp-hero-stats { gap: 2rem; flex-wrap: wrap; }
     .lp-section-head h2 { font-size: 1.8rem; }
     .lp-cta h2 { font-size: 1.8rem; }
-    .lp-hero-stat .num { font-size: 1.75rem; }
 }
 
 /* =====================================================================
