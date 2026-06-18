@@ -1,0 +1,199 @@
+@inject ApiClient Api
+@inject AppState State
+@inject ToastService Toast
+@inject JwtAuthStateProvider AuthState
+@inject NavigationManager Navigation
+@inject IConfiguration Configuration
+@implements IAsyncDisposable
+@using Microsoft.AspNetCore.SignalR.Client
+
+@* Sino de notificações com dropdown + hub SignalR auto-contido.
+   Reage a AuthenticationStateChanged para reconectar o hub com token novo (login/refresh).
+   Logout dispara Reset no estado e fecha o hub. *@
+
+<div class="nav-bell" @onclick="ToggleDropdown" @onclick:stopPropagation="true">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+        <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+        <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+    </svg>
+    @if (State.UnreadNotificationCount > 0)
+    {
+        <span class="nav-bell-badge" aria-label="@($"{State.UnreadNotificationCount} notificações não lidas")">
+            @(State.UnreadNotificationCount > 9 ? "9+" : State.UnreadNotificationCount.ToString())
+        </span>
+    }
+    @if (showDropdown)
+    {
+        <div class="notif-dropdown" @onclick:stopPropagation="true" role="region" aria-label="Notificações">
+            <div class="notif-dropdown-header">
+                <strong>Notificações</strong>
+                @if (State.UnreadNotificationCount > 0)
+                {
+                    <button type="button" class="btn-link" @onclick="MarkAllRead">Marcar todas como lidas</button>
+                }
+            </div>
+            @if (notifications is null || !notifications.Any())
+            {
+                <div class="notif-empty">Nenhuma notificação</div>
+            }
+            else
+            {
+                @foreach (var n in notifications.Take(8))
+                {
+                    <div class="notif-item @(!n.IsRead ? "unread" : "")"
+                         @onclick="() => GoToNotification(n)" role="button" tabindex="0">
+                        <div class="notif-icon" aria-hidden="true">@GetNotifIcon(n.Type)</div>
+                        <div class="notif-content">
+                            <div class="notif-title">@n.Title</div>
+                            <div class="notif-msg">@n.Message</div>
+                            <div class="notif-time">@FormatTime(n.CreatedAt)</div>
+                        </div>
+                    </div>
+                }
+            }
+        </div>
+    }
+</div>
+
+@code {
+    private bool showDropdown;
+    private IEnumerable<NotificationDto>? notifications;
+
+    private HubConnection? hub;
+    private readonly SemaphoreSlim hubLock = new(1, 1);
+    private AuthenticationStateChangedHandler? authChangedHandler;
+
+    protected override async Task OnInitializedAsync()
+    {
+        State.OnChange += OnStateChanged;
+        await ReconnectHubAsync();
+        authChangedHandler = task =>
+        {
+            _ = InvokeAsync(async () =>
+            {
+                await ReconnectHubAsync();
+                StateHasChanged();
+            });
+        };
+        AuthState.AuthenticationStateChanged += authChangedHandler;
+    }
+
+    private void OnStateChanged() => InvokeAsync(StateHasChanged);
+
+    private async Task ToggleDropdown()
+    {
+        showDropdown = !showDropdown;
+        if (showDropdown && notifications is null)
+        {
+            try { notifications = await Api.GetNotificationsAsync(); }
+            catch { /* handler global já toasta */ }
+        }
+    }
+
+    private async Task MarkAllRead()
+    {
+        try
+        {
+            await Api.MarkAllNotificationsAsReadAsync();
+            State.SetUnreadCount(0);
+            if (notifications is not null)
+                foreach (var n in notifications) n.IsRead = true;
+        }
+        catch { /* handler global */ }
+    }
+
+    private async Task GoToNotification(NotificationDto n)
+    {
+        if (!n.IsRead)
+        {
+            try { await Api.MarkNotificationAsReadAsync(n.Id); } catch { }
+            n.IsRead = true;
+            State.DecrementUnreadCount();
+        }
+        showDropdown = false;
+        if (!string.IsNullOrEmpty(n.Link))
+            Navigation.NavigateTo(n.Link);
+    }
+
+    private async Task ReconnectHubAsync()
+    {
+        await hubLock.WaitAsync();
+        try
+        {
+            if (hub is not null)
+            {
+                try { await hub.DisposeAsync(); } catch { }
+                hub = null;
+            }
+
+            // Lê direto do AuthState — State.IsAuthenticated pode estar stale no primeiro render
+            // (F5 com token válido: AuthenticationStateChanged não dispara e State.InitializeAsync
+            // ainda nem completou no MainLayout).
+            var auth = await AuthState.GetAuthenticationStateAsync();
+            if (auth.User.Identity?.IsAuthenticated != true) return;
+
+            var apiBase = (Configuration["ApiBaseUrl"] ?? "https://localhost:5000").TrimEnd('/');
+            hub = new HubConnectionBuilder()
+                .WithUrl($"{apiBase}/hubs/notifications", options =>
+                {
+                    options.AccessTokenProvider = async () => await AuthState.GetTokenAsync();
+                })
+                .WithAutomaticReconnect()
+                .Build();
+
+            hub.On<NotificationDto>("ReceiveNotification", n =>
+            {
+                InvokeAsync(() =>
+                {
+                    State.IncrementUnreadCount();
+                    if (notifications is not null)
+                        notifications = new[] { n }.Concat(notifications).ToList();
+                    Toast.ShowInfo(n.Title);
+                    StateHasChanged();
+                });
+            });
+
+            try { await hub.StartAsync(); }
+            catch { /* fallback: contagem só atualiza ao recarregar */ }
+        }
+        finally
+        {
+            hubLock.Release();
+        }
+    }
+
+    private static string GetNotifIcon(string type) => type switch
+    {
+        "proposal_received" => "\U0001F4E9",
+        "proposal_accepted" => "✅",
+        "proposal_rejected" => "❌",
+        "chat_message" => "\U0001F4AC",
+        _ => "\U0001F514"
+    };
+
+    private static string FormatTime(DateTime dt)
+    {
+        var local = dt.ToLocalTime();
+        var diff = DateTime.Now - local;
+        if (diff.TotalMinutes < 1) return "agora";
+        if (diff.TotalMinutes < 60) return $"{(int)diff.TotalMinutes}min";
+        if (diff.TotalHours < 24) return $"{(int)diff.TotalHours}h";
+        if (diff.TotalDays < 7) return $"{(int)diff.TotalDays}d";
+        return local.ToString("dd/MM");
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        State.OnChange -= OnStateChanged;
+        if (authChangedHandler is not null)
+        {
+            AuthState.AuthenticationStateChanged -= authChangedHandler;
+            authChangedHandler = null;
+        }
+        if (hub is not null)
+        {
+            try { await hub.DisposeAsync(); } catch { }
+            hub = null;
+        }
+    }
+}

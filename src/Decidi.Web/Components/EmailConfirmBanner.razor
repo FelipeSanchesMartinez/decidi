@@ -1,0 +1,87 @@
+@inject ApiClient Api
+@inject ToastService Toast
+@inject JwtAuthStateProvider AuthState
+@implements IDisposable
+@using System.Security.Claims
+
+@* Banner global pedindo confirmação de e-mail. Some quando claim email_confirmed=true.
+   Reage a AuthenticationStateChanged para refletir login/logout/refresh sem reload. *@
+
+@if (!emailConfirmed && isAuthenticated)
+{
+    <div class="email-confirm-banner" role="status">
+        <div class="container" style="display:flex;flex-wrap:wrap;align-items:center;gap:0.75rem">
+            <span aria-hidden="true" style="font-size:1.1rem">✉️</span>
+            <span style="flex:1;min-width:200px">
+                Confirme seu e-mail para liberar publicar projetos, enviar propostas e contratar.
+            </span>
+            <SubmitButton Type="button" Variant="btn-outline" CssClass="btn-sm"
+                          IsSubmitting="@resending" BusyText="Enviando..."
+                          OnClick="ResendConfirmation"
+                          Disabled="@(string.IsNullOrEmpty(userEmail))">
+                Reenviar e-mail
+            </SubmitButton>
+        </div>
+    </div>
+}
+
+@code {
+    private bool isAuthenticated;
+    private bool emailConfirmed = true;
+    private bool resending;
+    private string? userEmail;
+    private AuthenticationStateChangedHandler? authChangedHandler;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await RefreshFromAuthAsync();
+        authChangedHandler = task =>
+        {
+            _ = InvokeAsync(async () =>
+            {
+                await RefreshFromAuthAsync();
+                StateHasChanged();
+            });
+        };
+        AuthState.AuthenticationStateChanged += authChangedHandler;
+    }
+
+    private async Task RefreshFromAuthAsync()
+    {
+        var state = await AuthState.GetAuthenticationStateAsync();
+        isAuthenticated = state.User.Identity?.IsAuthenticated == true;
+        if (!isAuthenticated)
+        {
+            emailConfirmed = true;
+            userEmail = null;
+            return;
+        }
+        emailConfirmed = state.User.FindFirst("email_confirmed")?.Value == "true";
+        userEmail = state.User.FindFirst(ClaimTypes.Email)?.Value;
+    }
+
+    private async Task ResendConfirmation()
+    {
+        if (string.IsNullOrEmpty(userEmail)) return;
+        resending = true;
+        try
+        {
+            await Api.ResendConfirmationAsync(userEmail);
+            Toast.ShowSuccess("E-mail de confirmação reenviado. Verifique sua caixa de entrada.");
+        }
+        catch
+        {
+            Toast.ShowError("Não foi possível reenviar agora. Tente novamente em alguns minutos.");
+        }
+        resending = false;
+    }
+
+    public void Dispose()
+    {
+        if (authChangedHandler is not null)
+        {
+            AuthState.AuthenticationStateChanged -= authChangedHandler;
+            authChangedHandler = null;
+        }
+    }
+}

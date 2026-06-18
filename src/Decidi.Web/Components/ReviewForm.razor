@@ -1,0 +1,118 @@
+@* Formulário de avaliação reutilizado pelas duas pontas (cliente avalia freelancer
+   e freelancer avalia cliente). Aceita labels e textos por parâmetro para evitar
+   duplicação de markup com diferenças cosméticas. *@
+
+<div class="card review-form-card" id="review">
+    <h3 style="margin-bottom:0.5rem">@Title</h3>
+    <p class="text-muted text-sm mb-2">@Subtitle</p>
+
+    @if (!string.IsNullOrEmpty(ErrorMessage))
+    {
+        <div class="alert alert-danger">@ErrorMessage</div>
+    }
+
+    <div class="form-group">
+        <label>Nota geral</label>
+        <StarRating Value="OverallRating" ValueChanged="HandleOverallChanged" />
+    </div>
+    <div class="review-criteria">
+        <div class="rc-item">
+            <label>@QualityLabel</label>
+            <StarRating Value="QualityRating ?? 0"
+                        ValueChanged="@(v => HandleCriteriaChanged(nameof(QualityRating), v))" />
+        </div>
+        <div class="rc-item">
+            <label>@CommunicationLabel</label>
+            <StarRating Value="CommunicationRating ?? 0"
+                        ValueChanged="@(v => HandleCriteriaChanged(nameof(CommunicationRating), v))" />
+        </div>
+        <div class="rc-item">
+            <label>@DeadlineLabel</label>
+            <StarRating Value="DeadlineRating ?? 0"
+                        ValueChanged="@(v => HandleCriteriaChanged(nameof(DeadlineRating), v))" />
+        </div>
+    </div>
+
+    <div class="form-group">
+        <label>Comentário (opcional)</label>
+        <textarea class="form-control" value="@Comment" rows="3"
+                  @oninput="OnCommentInput"
+                  placeholder="@CommentPlaceholder"
+                  autocapitalize="sentences" autocorrect="on"
+                  maxlength="2000"></textarea>
+    </div>
+
+    <p class="text-sm text-muted" style="margin-bottom:0.75rem">
+        🔒 @PrivacyNote
+    </p>
+
+    <SubmitButton Type="button" IsSubmitting="@IsSubmitting"
+                  Disabled="@(OverallRating == 0)"
+                  BusyText="Enviando..." OnClick="Submit">
+        Enviar Avaliação
+    </SubmitButton>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public string Title { get; set; } = string.Empty;
+    [Parameter, EditorRequired] public string Subtitle { get; set; } = string.Empty;
+    [Parameter] public string QualityLabel { get; set; } = "Qualidade";
+    [Parameter] public string CommunicationLabel { get; set; } = "Comunicação";
+    [Parameter] public string DeadlineLabel { get; set; } = "Prazo";
+    [Parameter] public string CommentPlaceholder { get; set; } = string.Empty;
+    [Parameter, EditorRequired] public string PrivacyNote { get; set; } = string.Empty;
+    [Parameter] public string? ErrorMessage { get; set; }
+    [Parameter] public bool IsSubmitting { get; set; }
+
+    [Parameter] public int OverallRating { get; set; }
+    [Parameter] public EventCallback<int> OverallRatingChanged { get; set; }
+
+    [Parameter] public int? QualityRating { get; set; }
+    [Parameter] public EventCallback<int?> QualityRatingChanged { get; set; }
+
+    [Parameter] public int? CommunicationRating { get; set; }
+    [Parameter] public EventCallback<int?> CommunicationRatingChanged { get; set; }
+
+    [Parameter] public int? DeadlineRating { get; set; }
+    [Parameter] public EventCallback<int?> DeadlineRatingChanged { get; set; }
+
+    [Parameter] public string? Comment { get; set; }
+    [Parameter] public EventCallback<string?> CommentChanged { get; set; }
+
+    [Parameter] public EventCallback OnSubmit { get; set; }
+
+    private Task HandleOverallChanged(int value)
+    {
+        OverallRating = value;
+        return OverallRatingChanged.InvokeAsync(value);
+    }
+
+    private async Task HandleCriteriaChanged(string field, int value)
+    {
+        int? next = value == 0 ? null : value;
+        switch (field)
+        {
+            case nameof(QualityRating):
+                QualityRating = next;
+                await QualityRatingChanged.InvokeAsync(next);
+                break;
+            case nameof(CommunicationRating):
+                CommunicationRating = next;
+                await CommunicationRatingChanged.InvokeAsync(next);
+                break;
+            case nameof(DeadlineRating):
+                DeadlineRating = next;
+                await DeadlineRatingChanged.InvokeAsync(next);
+                break;
+        }
+    }
+
+    private async Task OnCommentInput(ChangeEventArgs e)
+    {
+        var value = e.Value?.ToString();
+        Comment = value;
+        await CommentChanged.InvokeAsync(value);
+    }
+
+    private Task Submit() => OnSubmit.InvokeAsync();
+}
