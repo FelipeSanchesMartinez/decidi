@@ -82,79 +82,15 @@
 
 @if (State.IsAuthenticated)
 {
-    @* ===== AUTHENTICATED DASHBOARD com KPIs (Sprint 6.1 / 6.2) ===== *@
-    <div class="container" style="padding:2rem 1.5rem">
-        <div class="dashboard-welcome">
-            <h1 style="font-size:1.75rem;margin-bottom:0.25rem">
-                Olá, <span class="gradient-text">@State.UserName</span>!
-            </h1>
-            <p class="text-muted">@GetWelcomeMessage()</p>
-        </div>
-
-        @if (State.IsFreelancer)
-        {
-            <div class="kpi-grid">
-                <a class="kpi-card" href="/proposals/my">
-                    <span class="kpi-label">Ganhos no mês</span>
-                    <span class="kpi-value">R$ @((freelancerStats?.EarningsThisMonth ?? 0).ToString("N2"))</span>
-                    <span class="kpi-hint">recebidos (líquido)</span>
-                </a>
-                <a class="kpi-card" href="/proposals/my">
-                    <span class="kpi-label">Propostas em aberto</span>
-                    <span class="kpi-value">@(freelancerStats?.PendingProposals ?? 0)</span>
-                    <span class="kpi-hint">aguardando resposta</span>
-                </a>
-                <a class="kpi-card" href="/projects/my">
-                    <span class="kpi-label">Contratos ativos</span>
-                    <span class="kpi-value">@(freelancerStats?.ActiveContracts ?? 0)</span>
-                    <span class="kpi-hint">em execução agora</span>
-                </a>
-                <a class="kpi-card" href="@($"/freelancer/{State.UserId}")">
-                    <span class="kpi-label">Avaliação média</span>
-                    <span class="kpi-value">@((freelancerStats?.AverageRating ?? 0).ToString("0.0"))</span>
-                    <span class="kpi-hint">@(freelancerStats?.TotalReviews ?? 0) avaliações</span>
-                </a>
-                <a class="kpi-card" href="/proposals/my">
-                    <span class="kpi-label">Taxa de aceite</span>
-                    <span class="kpi-value">@(((freelancerStats?.AcceptanceRate ?? 0) * 100).ToString("0"))%</span>
-                    <span class="kpi-hint">propostas aceitas</span>
-                </a>
-            </div>
-            <div class="dashboard-quicklinks">
-                <a class="btn btn-primary" href="/projects">🔍 Explorar projetos</a>
-                <a class="btn btn-outline" href="/proposals/my">Minhas propostas</a>
-            </div>
-        }
-        else
-        {
-            <div class="kpi-grid">
-                <a class="kpi-card" href="/projects/my">
-                    <span class="kpi-label">Projetos ativos</span>
-                    <span class="kpi-value">@(clientStats?.ActiveProjects ?? 0)</span>
-                    <span class="kpi-hint">em andamento</span>
-                </a>
-                <a class="kpi-card highlight" href="/projects/my">
-                    <span class="kpi-label">Propostas a revisar</span>
-                    <span class="kpi-value">@(clientStats?.ProposalsToReview ?? 0)</span>
-                    <span class="kpi-hint">aguardando sua decisão</span>
-                </a>
-                <a class="kpi-card" href="/chat">
-                    <span class="kpi-label">Conversas</span>
-                    <span class="kpi-value">@(clientStats?.Conversations ?? 0)</span>
-                    <span class="kpi-hint">canais de chat ativos</span>
-                </a>
-                <div class="kpi-card">
-                    <span class="kpi-label">Gasto na plataforma</span>
-                    <span class="kpi-value">R$ @((clientStats?.TotalSpentApprox ?? 0).ToString("N0"))</span>
-                    <span class="kpi-hint">somatório de contratações</span>
-                </div>
-            </div>
-            <div class="dashboard-quicklinks">
-                <a class="btn btn-primary" href="/projects/create">＋ Publicar projeto</a>
-                <a class="btn btn-outline" href="/projects">Explorar profissionais</a>
-            </div>
-        }
-    </div>
+    @* Dashboard delegado ao componente customizado por persona. *@
+    @if (State.IsFreelancer)
+    {
+        <FreelancerDashboard Stats="@freelancerStats" />
+    }
+    else
+    {
+        <ClientDashboard Stats="@clientStats" />
+    }
 }
 else
 {
@@ -657,10 +593,6 @@ else
     }
 
     private void OnStateChanged() => InvokeAsync(StateHasChanged);
-
-    private string GetWelcomeMessage() => State.IsFreelancer
-        ? "Encontre projetos que combinam com suas habilidades."
-        : "Publique projetos e encontre os melhores profissionais.";
 
     private void GoToHeroRegister()
     {

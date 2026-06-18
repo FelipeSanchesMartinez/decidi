@@ -1,0 +1,321 @@
+@inject ApiClient Api
+@inject AppState State
+@inject NavigationManager Navigation
+
+@* Dashboard do profissional.
+   Foco: ganhos + ações pendentes + dicas contextuais. Tudo via endpoints existentes. *@
+
+<div class="container" style="padding:2rem 1.5rem;max-width:1080px;margin:0 auto">
+
+    @* ── Cabeçalho com destaque financeiro ───────────────────── *@
+    <header class="dash-hero">
+        <div>
+            <h1 class="dash-hero-title">Olá, <span class="gradient-text">@firstName</span></h1>
+            <p class="dash-hero-sub">@HeroSubtitle</p>
+        </div>
+        <div class="dash-hero-actions">
+            <a class="btn btn-primary" href="/projects">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                Explorar projetos
+            </a>
+            <a class="btn btn-outline" href="@($"/freelancer/{State.UserId}")">Ver perfil público</a>
+        </div>
+    </header>
+
+    @if (loading)
+    {
+        <SkeletonCard Count="3" Lines="3" />
+    }
+    else
+    {
+        @* ── Dica contextual ───────────────────────────────── *@
+        @if (!string.IsNullOrEmpty(contextualTip))
+        {
+            <div class="dash-tip" role="status">
+                <span class="dash-tip-icon" aria-hidden="true">💡</span>
+                <div class="dash-tip-body">
+                    <strong>@contextualTipTitle</strong>
+                    <p>@contextualTip</p>
+                </div>
+                @if (!string.IsNullOrEmpty(contextualTipLink))
+                {
+                    <a class="btn btn-outline btn-sm" href="@contextualTipLink">@contextualTipLinkLabel</a>
+                }
+            </div>
+        }
+
+        @* ── Ações pendentes ─────────────────────────────────── *@
+        @if (HasPendingActions)
+        {
+            <section class="dash-section">
+                <h2 class="dash-section-title">Suas pendências</h2>
+                <div class="dash-actions-grid">
+                    @if (State.UnreadNotificationCount > 0)
+                    {
+                        <a class="dash-action dash-action-urgent" href="/notifications">
+                            <div class="dash-action-icon" aria-hidden="true">🔔</div>
+                            <div class="dash-action-body">
+                                <div class="dash-action-count">@State.UnreadNotificationCount</div>
+                                <div class="dash-action-label">@(State.UnreadNotificationCount == 1 ? "notificação não lida" : "notificações não lidas")</div>
+                            </div>
+                            <div class="dash-action-arrow" aria-hidden="true">→</div>
+                        </a>
+                    }
+                    @if (activeContracts > 0)
+                    {
+                        <a class="dash-action" href="/proposals/my?status=accepted">
+                            <div class="dash-action-icon" aria-hidden="true">⚙️</div>
+                            <div class="dash-action-body">
+                                <div class="dash-action-count">@activeContracts</div>
+                                <div class="dash-action-label">@(activeContracts == 1 ? "contrato em execução" : "contratos em execução")</div>
+                            </div>
+                            <div class="dash-action-arrow" aria-hidden="true">→</div>
+                        </a>
+                    }
+                    @if (pendingReviewsCount > 0)
+                    {
+                        <a class="dash-action" href="/reviews/pending">
+                            <div class="dash-action-icon" aria-hidden="true">⭐</div>
+                            <div class="dash-action-body">
+                                <div class="dash-action-count">@pendingReviewsCount</div>
+                                <div class="dash-action-label">@(pendingReviewsCount == 1 ? "cliente para avaliar" : "clientes para avaliar")</div>
+                            </div>
+                            <div class="dash-action-arrow" aria-hidden="true">→</div>
+                        </a>
+                    }
+                </div>
+            </section>
+        }
+
+        @* ── KPIs expandidos ───────────────────────────────── *@
+        <section class="dash-section">
+            <h2 class="dash-section-title">Performance</h2>
+            <div class="dash-kpi-grid dash-kpi-grid-5">
+                <div class="dash-kpi dash-kpi-highlight">
+                    <span class="dash-kpi-label">Ganhos no mês</span>
+                    <span class="dash-kpi-value">R$ @((stats?.EarningsThisMonth ?? 0).ToString("N2"))</span>
+                    <span class="dash-kpi-hint">recebidos (líquido)</span>
+                </div>
+                <a class="dash-kpi" href="/proposals/my?status=accepted">
+                    <span class="dash-kpi-label">Contratos ativos</span>
+                    <span class="dash-kpi-value">@activeContracts</span>
+                    <span class="dash-kpi-hint">em execução agora</span>
+                </a>
+                <a class="dash-kpi" href="/proposals/my?status=pending">
+                    <span class="dash-kpi-label">Propostas em aberto</span>
+                    <span class="dash-kpi-value">@pendingProposals</span>
+                    <span class="dash-kpi-hint">aguardando resposta</span>
+                </a>
+                <a class="dash-kpi" href="@($"/freelancer/{State.UserId}")">
+                    <span class="dash-kpi-label">Avaliação</span>
+                    <span class="dash-kpi-value">@((stats?.AverageRating ?? 0).ToString("0.0"))</span>
+                    <span class="dash-kpi-hint">@(stats?.TotalReviews ?? 0) @(stats?.TotalReviews == 1 ? "avaliação" : "avaliações")</span>
+                </a>
+                <div class="dash-kpi dash-kpi-static">
+                    <span class="dash-kpi-label">Taxa de aceite</span>
+                    <span class="dash-kpi-value">@(((stats?.AcceptanceRate ?? 0) * 100).ToString("0"))%</span>
+                    <span class="dash-kpi-hint">propostas aceitas</span>
+                </div>
+            </div>
+        </section>
+
+        @* ── Contratos em execução ─────────────────────────── *@
+        @if (acceptedProposals.Any())
+        {
+            <section class="dash-section">
+                <div class="dash-section-header">
+                    <h2 class="dash-section-title">Contratos em execução</h2>
+                    <a class="dash-section-link" href="/proposals/my?status=accepted">Ver todos →</a>
+                </div>
+                <div class="dash-list">
+                    @foreach (var p in acceptedProposals.Take(5))
+                    {
+                        <a class="dash-list-item" href="@($"/projects/{p.ProjectId}")">
+                            <div class="dash-list-main">
+                                <div class="dash-list-title">@p.ProjectTitle</div>
+                                <div class="dash-list-meta">
+                                    <span>R$ @p.Amount.ToString("N0")</span>
+                                    <span class="dash-list-dot" aria-hidden="true">·</span>
+                                    <span>@p.DeliveryDays dias</span>
+                                    <span class="dash-list-dot" aria-hidden="true">·</span>
+                                    <span>aceita em @p.CreatedAt.ToString("dd/MM")</span>
+                                </div>
+                            </div>
+                            <span class="dash-list-arrow" aria-hidden="true">→</span>
+                        </a>
+                    }
+                </div>
+            </section>
+        }
+
+        @* ── Propostas pendentes ───────────────────────────── *@
+        @if (pendingProposalsList.Any())
+        {
+            <section class="dash-section">
+                <div class="dash-section-header">
+                    <h2 class="dash-section-title">Propostas aguardando resposta</h2>
+                    <a class="dash-section-link" href="/proposals/my?status=pending">Ver todas →</a>
+                </div>
+                <div class="dash-list">
+                    @foreach (var p in pendingProposalsList.Take(5))
+                    {
+                        <a class="dash-list-item" href="@($"/projects/{p.ProjectId}")">
+                            <div class="dash-list-main">
+                                <div class="dash-list-title">@p.ProjectTitle</div>
+                                <div class="dash-list-meta">
+                                    <span>R$ @p.Amount.ToString("N0")</span>
+                                    <span class="dash-list-dot" aria-hidden="true">·</span>
+                                    <span>@p.DeliveryDays dias</span>
+                                    <span class="dash-list-dot" aria-hidden="true">·</span>
+                                    <span>enviada em @p.CreatedAt.ToString("dd/MM")</span>
+                                </div>
+                            </div>
+                            <span class="dash-list-arrow" aria-hidden="true">→</span>
+                        </a>
+                    }
+                </div>
+            </section>
+        }
+
+        @* ── Atividade recente ─────────────────────────────── *@
+        @if (recentNotifications.Any())
+        {
+            <section class="dash-section">
+                <div class="dash-section-header">
+                    <h2 class="dash-section-title">Atividade recente</h2>
+                    <a class="dash-section-link" href="/notifications">Ver todas →</a>
+                </div>
+                <ul class="dash-activity">
+                    @foreach (var n in recentNotifications.Take(5))
+                    {
+                        <li class="dash-activity-item @(n.IsRead ? "" : "unread")">
+                            <a href="@(n.Link ?? "/notifications")">
+                                <span class="dash-activity-title">@n.Title</span>
+                                <span class="dash-activity-time">@FormatTime(n.CreatedAt)</span>
+                            </a>
+                        </li>
+                    }
+                </ul>
+            </section>
+        }
+    }
+</div>
+
+@code {
+    [Parameter] public FreelancerStatsDto? Stats { get; set; }
+
+    private FreelancerStatsDto? stats;
+    private List<ProposalDto> acceptedProposals = [];
+    private List<ProposalDto> pendingProposalsList = [];
+    private List<NotificationDto> recentNotifications = [];
+    private int pendingReviewsCount;
+    private bool loading = true;
+
+    private int activeContracts => stats?.ActiveContracts ?? acceptedProposals.Count;
+    private int pendingProposals => stats?.PendingProposals ?? pendingProposalsList.Count;
+
+    private string firstName => string.IsNullOrWhiteSpace(State.UserName)
+        ? "por aqui"
+        : State.UserName.Split(' ', StringSplitOptions.RemoveEmptyEntries).FirstOrDefault() ?? State.UserName;
+
+    private bool HasPendingActions =>
+        State.UnreadNotificationCount > 0 || activeContracts > 0 || pendingReviewsCount > 0;
+
+    private string HeroSubtitle
+    {
+        get
+        {
+            var earnings = stats?.EarningsThisMonth ?? 0m;
+            if (earnings > 0)
+                return $"R$ {earnings:N2} recebidos este mês. Continue assim.";
+            if (activeContracts > 0)
+                return $"Você tem {activeContracts} {(activeContracts == 1 ? "contrato em execução" : "contratos em execução")}.";
+            if (pendingProposals > 0)
+                return $"Você tem {pendingProposals} {(pendingProposals == 1 ? "proposta" : "propostas")} aguardando resposta.";
+            return "Explore projetos abertos e envie sua primeira proposta.";
+        }
+    }
+
+    // Dicas contextuais — disparam só quando há algo concreto a sugerir.
+    private string? contextualTipTitle;
+    private string? contextualTip;
+    private string? contextualTipLink;
+    private string? contextualTipLinkLabel;
+
+    protected override async Task OnInitializedAsync()
+    {
+        stats = Stats;
+
+        var proposalsTask = SafeAsync(() => Api.GetMyProposalsAsync());
+        var notifsTask = SafeAsync(() => Api.GetNotificationsAsync());
+        var pendingReviewsTask = SafeAsync(() => Api.GetPendingReviewsAsync());
+
+        await Task.WhenAll(proposalsTask, notifsTask, pendingReviewsTask);
+
+        var allProposals = proposalsTask.Result?.ToList() ?? [];
+        acceptedProposals = allProposals
+            .Where(p => p.Status == ProposalStatus.Accepted)
+            .OrderByDescending(p => p.CreatedAt)
+            .ToList();
+        pendingProposalsList = allProposals
+            .Where(p => p.Status == ProposalStatus.Pending)
+            .OrderByDescending(p => p.CreatedAt)
+            .ToList();
+
+        recentNotifications = notifsTask.Result?.OrderByDescending(n => n.CreatedAt).ToList() ?? [];
+        pendingReviewsCount = pendingReviewsTask.Result?.Count() ?? 0;
+
+        BuildContextualTip();
+
+        loading = false;
+    }
+
+    /// <summary>
+    /// Escolhe UMA dica baseada no estado real do perfil/atividade.
+    /// Ordem de prioridade: perfil incompleto > zero propostas enviadas > zero avaliações.
+    /// </summary>
+    private void BuildContextualTip()
+    {
+        if (!State.IsProfileComplete)
+        {
+            contextualTipTitle = "Complete seu perfil para enviar propostas";
+            contextualTip = "Adicione título profissional, bio e habilidades. Perfis completos têm mais que o dobro de aceite.";
+            contextualTipLink = "/profile/edit";
+            contextualTipLinkLabel = "Editar perfil";
+            return;
+        }
+
+        if (pendingProposalsList.Count == 0 && acceptedProposals.Count == 0)
+        {
+            contextualTipTitle = "Que tal enviar sua primeira proposta?";
+            contextualTip = "Procure projetos compatíveis com suas habilidades. Propostas personalizadas têm 3x mais chance de serem aceitas.";
+            contextualTipLink = "/projects";
+            contextualTipLinkLabel = "Buscar projetos";
+            return;
+        }
+
+        if ((stats?.TotalReviews ?? 0) == 0 && acceptedProposals.Count > 0)
+        {
+            contextualTipTitle = "Ainda sem avaliações?";
+            contextualTip = "Boas entregas geram avaliações que aumentam sua taxa de aceite. Capriche na comunicação com seus clientes.";
+            return;
+        }
+    }
+
+    private static async Task<T?> SafeAsync<T>(Func<Task<T?>> call)
+    {
+        try { return await call(); }
+        catch { return default; }
+    }
+
+    private static string FormatTime(DateTime dt)
+    {
+        var local = dt.ToLocalTime();
+        var diff = DateTime.Now - local;
+        if (diff.TotalMinutes < 1) return "agora";
+        if (diff.TotalMinutes < 60) return $"há {(int)diff.TotalMinutes} min";
+        if (diff.TotalHours < 24) return $"há {(int)diff.TotalHours}h";
+        if (diff.TotalDays < 7) return $"há {(int)diff.TotalDays}d";
+        return local.ToString("dd/MM/yyyy");
+    }
+}
