@@ -1187,22 +1187,38 @@ select.form-control { appearance: auto; }
 /* ── Hero form + actions note ────────────────────────────────────── */
 .lp-hero-form {
     display: flex; gap: 0.5rem; flex-wrap: wrap;
-    margin-top: 1.5rem;
+    margin: 1.75rem auto 0;
     background: rgba(255,255,255,0.08);
-    padding: 0.5rem; border-radius: 999px;
+    padding: 0.45rem 0.45rem 0.45rem 0.5rem;
+    border-radius: 999px;
     border: 1px solid rgba(255,255,255,0.15);
     max-width: 620px;
+    backdrop-filter: blur(6px);
+    transition: border-color var(--transition-fast), background var(--transition-fast);
 }
+.lp-hero-form:focus-within {
+    border-color: rgba(24,167,163,0.5);
+    background: rgba(255,255,255,0.12);
+}
+/* Aplica em TODOS os inputs do form — antes só pegava type=text e o markup usa type=search,
+   por isso o campo aparecia minúsculo sem padding nem flex:1. */
+.lp-hero-form input,
+.lp-hero-form input[type="search"],
 .lp-hero-form input[type="text"] {
-    flex: 1; min-width: 200px;
+    flex: 1 1 0; min-width: 0;
     border: 0; outline: 0; background: transparent;
-    color: var(--white); font-size: 1rem;
-    padding: 0.85rem 1.1rem;
+    color: var(--white); font-size: 1rem; font-family: var(--font-body);
+    padding: 0.9rem 1.1rem;
+    -webkit-appearance: none; appearance: none;
 }
 .lp-hero-form input::placeholder { color: rgba(255,255,255,0.55); }
-.lp-hero-form .btn { white-space: nowrap; }
+/* Esconde o "X" do type=search em Safari/Chrome que estraga o visual da pill */
+.lp-hero-form input[type="search"]::-webkit-search-decoration,
+.lp-hero-form input[type="search"]::-webkit-search-cancel-button { -webkit-appearance: none; }
+.lp-hero-form .btn { white-space: nowrap; flex-shrink: 0; }
+
 .lp-hero-actions-note {
-    margin-top: 1rem; font-size: 0.85rem;
+    margin: 0.85rem auto 0; font-size: 0.85rem;
     color: rgba(255,255,255,0.7); max-width: 620px;
 }
 .visually-hidden {
@@ -1211,7 +1227,7 @@ select.form-control { appearance: auto; }
 }
 @media (max-width: 520px) {
     .lp-hero-form {
-        flex-direction: column; border-radius: 16px;
+        flex-direction: column; border-radius: var(--radius-lg);
         padding: 0.6rem;
     }
     .lp-hero-form .btn { width: 100%; }
@@ -1364,13 +1380,31 @@ select.form-control { appearance: auto; }
     margin: 0 auto 2.5rem;
     line-height: 1.7;
 }
+/* Link secundário do hero (Sou profissional). Antes era um btn-ghost que parecia
+   "outra cápsula vazia" colada ao form. Agora é só um link sutil com seta. */
 .lp-hero-actions {
     display: flex;
-    gap: 1rem;
     justify-content: center;
-    flex-wrap: wrap;
-    margin-bottom: 3.5rem;
+    margin: 1.25rem 0 3.5rem;
 }
+.lp-hero-secondary {
+    background: transparent;
+    border: 0;
+    color: rgba(255,255,255,0.85);
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: 0.95rem;
+    padding: 0.4rem 0.6rem;
+    cursor: pointer;
+    text-decoration: none;
+    border-bottom: 1.5px solid rgba(255,255,255,0.25);
+    transition: color var(--transition-fast), border-color var(--transition-fast);
+}
+.lp-hero-secondary:hover {
+    color: var(--white);
+    border-color: var(--brand-teal);
+}
+.lp-hero-secondary svg { vertical-align: -2px; margin-left: 0.25rem; }
 
 /* Hero stats */
 .lp-hero-stats {
