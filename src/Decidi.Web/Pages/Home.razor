@@ -4,10 +4,80 @@
 @inject NavigationManager Navigation
 @inject AppState State
 
-<PageTitle>decidi — A plataforma freelancer com as menores taxas do Brasil</PageTitle>
+<PageTitle>decidi — Contrate freelancers no Brasil sem mensalidade · taxas a partir de R$3,99</PageTitle>
 <HeadContent>
     <link rel="canonical" href="https://decidi.com.br/" />
+    <meta name="description" content="Publique seu projeto grátis, receba propostas de freelancers brasileiros qualificados e contrate em minutos. R$3,99 fixo por contratação. Sem mensalidade. Pagamento por etapas. Avaliações reais." />
+    <meta property="og:title" content="decidi — Contrate freelancers no Brasil sem mensalidade" />
+    <meta property="og:description" content="Publique seu projeto grátis. Compare propostas. Contrate em minutos. Taxa fixa de R$3,99, sem mensalidade." />
     <meta property="og:url" content="https://decidi.com.br/" />
+    <meta name="twitter:title" content="decidi — Contrate freelancers no Brasil sem mensalidade" />
+    <meta name="twitter:description" content="Publique seu projeto grátis. Compare propostas. Contrate em minutos. Taxa fixa de R$3,99." />
+
+    @* JSON-LD: HowTo descreve os 3 passos do "Como funciona" para rich snippets. *@
+    <script type="application/ld+json">
+    {
+        "@@context": "https://schema.org",
+        "@@type": "HowTo",
+        "name": "Como contratar um freelancer na decidi",
+        "description": "Três passos simples para sair do briefing à contratação.",
+        "step": [
+            { "@@type": "HowToStep", "position": 1, "name": "Publique seu projeto", "text": "Descreva o que você precisa, defina o escopo e escolha a categoria. Publicação totalmente gratuita." },
+            { "@@type": "HowToStep", "position": 2, "name": "Receba propostas", "text": "Profissionais qualificados enviam propostas com valor, prazo e abordagem. Compare lado a lado." },
+            { "@@type": "HowToStep", "position": 3, "name": "Decida e acompanhe", "text": "Aceite a melhor proposta, converse pelo chat e acompanhe cada entrega por milestones." }
+        ]
+    }
+    </script>
+
+    @* JSON-LD: FAQPage para a seção de perguntas frequentes — gera rich snippets no Google. *@
+    <script type="application/ld+json">
+    {
+        "@@context": "https://schema.org",
+        "@@type": "FAQPage",
+        "mainEntity": [
+            {
+                "@@type": "Question",
+                "name": "Quanto custa publicar um projeto?",
+                "acceptedAnswer": { "@@type": "Answer", "text": "Publicar é gratuito e ilimitado. Você só paga R$3,99 quando decidir contratar um profissional. Sem mensalidade, sem pacotes, sem destaque pago." }
+            },
+            {
+                "@@type": "Question",
+                "name": "Como o profissional recebe pelo trabalho?",
+                "acceptedAnswer": { "@@type": "Answer", "text": "Cada projeto pode ser dividido em milestones. O pagamento de cada etapa é liberado para o profissional quando o cliente aprova a entrega. Sobre o valor recebido incidem 12% de taxa da plataforma mais R$2,99 fixos por transação." }
+            },
+            {
+                "@@type": "Question",
+                "name": "E se a entrega não for o combinado?",
+                "acceptedAnswer": { "@@type": "Answer", "text": "O pagamento da milestone só é liberado após sua aprovação. Em caso de impasse, o histórico fica registrado no chat (incluindo arquivos e prazos) e nossa equipe pode mediar a discussão." }
+            },
+            {
+                "@@type": "Question",
+                "name": "Como saber se um profissional é confiável?",
+                "acceptedAnswer": { "@@type": "Answer", "text": "Cada profissional tem perfil público com bio, habilidades, portfólio, projetos concluídos e avaliações reais de clientes anteriores. As avaliações ficam privadas até as duas partes se avaliarem, evitando retaliação." }
+            },
+            {
+                "@@type": "Question",
+                "name": "Posso fechar negócio fora da plataforma?",
+                "acceptedAnswer": { "@@type": "Answer", "text": "Não. As mensagens são monitoradas até a contratação e contatos pessoais (telefone, e-mail, redes sociais) são removidos automaticamente do chat. Isso protege cliente e profissional contra fraudes, garante o histórico do contrato e o pagamento por etapas." }
+            },
+            {
+                "@@type": "Question",
+                "name": "Há plano premium ou destaque pago?",
+                "acceptedAnswer": { "@@type": "Answer", "text": "Não. Não vendemos visibilidade. Todo profissional aparece igualmente nas buscas dos clientes. Quem se destaca é quem entrega bons trabalhos e acumula boas avaliações." }
+            },
+            {
+                "@@type": "Question",
+                "name": "Quanto tempo leva para receber propostas?",
+                "acceptedAnswer": { "@@type": "Answer", "text": "Em média, as primeiras propostas chegam nos primeiros 30 minutos após a publicação. Projetos com descrição detalhada atraem propostas mais qualificadas." }
+            },
+            {
+                "@@type": "Question",
+                "name": "Quais categorias de profissionais estão disponíveis?",
+                "acceptedAnswer": { "@@type": "Answer", "text": "Desenvolvimento Web e Mobile, Design Gráfico, Marketing Digital, Redação e Tradução, Consultoria, Vídeo e Animação, Engenharia de Software, Suporte Técnico, Financeiro e Contabilidade — entre outras." }
+            }
+        ]
+    }
+    </script>
 </HeadContent>
 
 @if (State.IsAuthenticated)
@@ -97,28 +167,31 @@ else
         <div class="container">
             <div class="lp-hero-content">
                 <h1>
-                    Conecte talento ao<br />
-                    <span class="gradient-text">projeto certo</span>
+                    Encontre o freelancer certo,<br />
+                    <span class="gradient-text">sem mensalidade.</span>
                 </h1>
                 <p class="lp-hero-sub">
-                    A plataforma freelancer com as menores taxas do Brasil.
-                    Zero mensalidade. Publique, compare e decida.
+                    Publique seu projeto grátis, receba propostas em minutos e
+                    contrate pagando apenas <strong>R$3,99</strong>. Nada de
+                    pacote, assinatura ou destaque pago.
                 </p>
                 <form class="lp-hero-form" @onsubmit="GoToHeroRegister" @onsubmit:preventDefault="true">
-                    <label class="visually-hidden" for="hero-hint">Descreva sua necessidade</label>
+                    <label class="visually-hidden" for="hero-hint">Descreva o que você precisa</label>
                     <input id="hero-hint" type="search" autocomplete="off"
                         autocapitalize="sentences" autocorrect="on" enterkeyhint="go"
-                        placeholder="Descreva o que precisa: ex. site para minha loja"
+                        placeholder="O que você precisa? Ex: site da minha loja"
                         @bind="heroHint" @bind:event="oninput" maxlength="200" />
-                    <button type="submit" class="btn btn-primary btn-xl">Publicar projeto</button>
+                    <button type="submit" class="btn btn-primary btn-xl">Publicar projeto grátis</button>
                 </form>
 
                 <div class="lp-hero-actions">
-                    <a href="/register?role=freelancer" class="btn btn-ghost btn-xl">Sou profissional, quero propostas</a>
+                    <a href="/register?role=freelancer" class="btn btn-ghost btn-xl">
+                        Sou profissional, quero receber propostas
+                    </a>
                 </div>
                 <p class="lp-hero-actions-note">
-                    Cliente: publica grátis, paga R$3,99 só ao contratar. ·
-                    Profissional: envie propostas, taxa de 12% + R$2,99 só quando receber.
+                    Cliente: publica grátis, paga <strong>R$3,99</strong> só ao contratar.
+                    Profissional: <strong>12% + R$2,99</strong> só sobre o que receber.
                 </p>
 
                 <div class="lp-hero-stats">
@@ -168,29 +241,44 @@ else
     </section>
 
     @* ── COMO FUNCIONA ───────────────────────────────────────────────── *@
-    <section class="lp-section">
+    <section class="lp-section" id="como-funciona">
         <div class="container">
             <div class="lp-section-head">
-                <div class="lp-section-badge">Simples e rápido</div>
-                <h2>Como funciona</h2>
-                <p>Em três passos você já está conectado ao profissional ideal</p>
+                <div class="lp-section-badge">Como funciona</div>
+                <h2>Do briefing à contratação em três passos</h2>
+                <p>Sem cadastro pago, sem etapas burocráticas, sem espera longa.</p>
             </div>
             <div class="lp-steps">
                 <div class="lp-step">
                     <div class="lp-step-num">1</div>
-                    <h3>Publique seu projeto</h3>
-                    <p>Descreva o que precisa, defina o orçamento e escolha a categoria. É rápido, simples e totalmente gratuito.</p>
+                    <h3>Publique o projeto</h3>
+                    <p>
+                        Descreva o que precisa, o prazo desejado e selecione a
+                        categoria. Você não precisa definir o valor — os profissionais
+                        propõem. Publicação gratuita e ilimitada.
+                    </p>
                 </div>
                 <div class="lp-step">
                     <div class="lp-step-num">2</div>
-                    <h3>Receba propostas</h3>
-                    <p>Freelancers qualificados enviam propostas com valor, prazo e abordagem detalhada. Compare com calma.</p>
+                    <h3>Receba e compare propostas</h3>
+                    <p>
+                        Em média, as primeiras propostas chegam em 30 minutos. Compare
+                        valor, prazo, abordagem e perfil de cada profissional lado a
+                        lado, com calma.
+                    </p>
                 </div>
                 <div class="lp-step">
                     <div class="lp-step-num">3</div>
-                    <h3>Escolha e decida</h3>
-                    <p>Aceite a melhor proposta, converse pelo chat em tempo real e acompanhe cada etapa do projeto.</p>
+                    <h3>Contrate e acompanhe</h3>
+                    <p>
+                        Aceite a proposta que faz mais sentido. Combine os detalhes
+                        pelo chat e acompanhe o trabalho dividido em milestones —
+                        cada pagamento só é liberado após sua aprovação.
+                    </p>
                 </div>
+            </div>
+            <div class="lp-section-cta">
+                <a href="/register" class="btn btn-primary btn-lg">Publicar meu projeto agora</a>
             </div>
         </div>
     </section>
@@ -244,43 +332,43 @@ else
     </section>
 
     @* ── DIFERENCIAIS ─────────────────────────────────────────────────── *@
-    <section class="lp-section">
+    <section class="lp-section" id="diferenciais">
         <div class="container">
             <div class="lp-section-head">
-                <div class="lp-section-badge">Nossos diferenciais</div>
-                <h2>Por que a decidi?</h2>
-                <p>Criamos uma plataforma justa, acessível e feita para quem trabalha de verdade</p>
+                <div class="lp-section-badge">Diferenciais</div>
+                <h2>O que torna a decidi diferente</h2>
+                <p>Plataforma feita para ser justa nos dois lados — cliente e profissional.</p>
             </div>
             <div class="lp-features">
                 <div class="lp-feature">
-                    <div class="lp-feature-icon">&#128176;</div>
+                    <div class="lp-feature-icon" aria-hidden="true">&#128176;</div>
                     <h4>Zero mensalidade</h4>
-                    <p>Sem planos, sem assinaturas. Você só paga quando efetivamente usa a plataforma para fechar negócio.</p>
+                    <p>Você não paga assinatura, pacote ou plano. A cobrança acontece só quando há contratação efetiva.</p>
                 </div>
                 <div class="lp-feature">
-                    <div class="lp-feature-icon">&#9878;</div>
-                    <h4>Mesma oportunidade a todos</h4>
-                    <p>Não vendemos destaque. Todo freelancer tem a mesma visibilidade. Quem se destaca é quem entrega qualidade.</p>
+                    <div class="lp-feature-icon" aria-hidden="true">&#9878;</div>
+                    <h4>Sem destaque pago</h4>
+                    <p>Não vendemos posição. Todo profissional concorre igual. Quem aparece é quem entrega — não quem investe mais em marketing interno.</p>
                 </div>
                 <div class="lp-feature">
-                    <div class="lp-feature-icon">&#128200;</div>
-                    <h4>As menores taxas</h4>
-                    <p>Clientes pagam apenas R$3,99 ao contratar um profissional. Freelancers pagam 12% + R$2,99 por transação. Simples assim.</p>
+                    <div class="lp-feature-icon" aria-hidden="true">&#128200;</div>
+                    <h4>Taxa transparente e baixa</h4>
+                    <p>R$3,99 fixos para o cliente ao contratar. 12% + R$2,99 para o profissional, apenas sobre o valor efetivamente recebido.</p>
                 </div>
                 <div class="lp-feature">
-                    <div class="lp-feature-icon">&#128274;</div>
-                    <h4>Pagamento por etapas</h4>
-                    <p>Divida o projeto em milestones. O pagamento só é liberado quando o cliente aprova cada entrega.</p>
+                    <div class="lp-feature-icon" aria-hidden="true">&#128274;</div>
+                    <h4>Pagamento por milestones</h4>
+                    <p>Divida o projeto em etapas com valor e prazo próprios. Cada pagamento é liberado quando o cliente aprova a entrega.</p>
                 </div>
                 <div class="lp-feature">
-                    <div class="lp-feature-icon">&#128172;</div>
-                    <h4>Chat em tempo real</h4>
-                    <p>Comunique-se diretamente com seu cliente ou freelancer. Sem intermediários, sem complicação.</p>
+                    <div class="lp-feature-icon" aria-hidden="true">&#128172;</div>
+                    <h4>Chat com proteção antifraude</h4>
+                    <p>Conversa em tempo real entre cliente e profissional. Tentativas de tirar o contato da plataforma são removidas automaticamente.</p>
                 </div>
                 <div class="lp-feature">
-                    <div class="lp-feature-icon">&#11088;</div>
-                    <h4>Avaliações reais</h4>
-                    <p>Sistema de reviews transparente. Escolha freelancers com base na experiência real de outros clientes.</p>
+                    <div class="lp-feature-icon" aria-hidden="true">&#11088;</div>
+                    <h4>Avaliações sem retaliação</h4>
+                    <p>As avaliações ficam privadas até as duas partes se avaliarem (ou após 14 dias). Sem medo de quem fala primeiro.</p>
                 </div>
             </div>
         </div>
@@ -365,30 +453,107 @@ else
         </section>
     }
 
-    @* ── PARA FREELANCERS ─────────────────────────────────────────────── *@
-    <section class="lp-section">
+    @* ── PARA CLIENTES ───────────────────────────────────────────────── *@
+    <section class="lp-section alt" id="para-clientes">
         <div class="container">
             <div class="lp-section-head">
-                <div class="lp-section-badge">Para profissionais</div>
-                <h2>Freelancer, aqui é o seu lugar</h2>
-                <p>Chega de pagar caro para trabalhar. Na decidi, quem manda é o seu talento.</p>
+                <div class="lp-section-badge">Para clientes</div>
+                <h2>Para quem precisa contratar</h2>
+                <p>Foco no resultado, sem perder tempo com burocracia ou mensalidade.</p>
             </div>
             <div class="lp-steps">
                 <div class="lp-step">
-                    <div class="lp-step-num">&#128640;</div>
-                    <h3>Cadastro gratuito</h3>
-                    <p>Crie sua conta, monte seu perfil profissional e comece a enviar propostas agora mesmo. Sem custo inicial.</p>
+                    <div class="lp-step-num" aria-hidden="true">&#128221;</div>
+                    <h3>Publicação em minutos</h3>
+                    <p>
+                        Use os templates por categoria como ponto de partida. Quanto mais
+                        clara a descrição, melhores as propostas que você recebe.
+                    </p>
                 </div>
                 <div class="lp-step">
-                    <div class="lp-step-num">&#127919;</div>
-                    <h3>Projetos de verdade</h3>
-                    <p>Acesse projetos reais publicados por clientes que precisam da sua expertise. Sem leilões, sem corrida pelo menor preço.</p>
+                    <div class="lp-step-num" aria-hidden="true">&#9878;</div>
+                    <h3>Comparação lado a lado</h3>
+                    <p>
+                        Avalie valor, prazo e abordagem das propostas em uma tela só.
+                        Veja perfil completo, avaliações anteriores e portfólio antes
+                        de decidir.
+                    </p>
                 </div>
                 <div class="lp-step">
-                    <div class="lp-step-num">&#128181;</div>
-                    <h3>Receba com segurança</h3>
-                    <p>Pagamento garantido por milestones. Só descontamos 12% + R$2,99 quando você efetivamente recebe. Zero mensalidade.</p>
+                    <div class="lp-step-num" aria-hidden="true">&#128274;</div>
+                    <h3>Pagamento condicionado</h3>
+                    <p>
+                        Divida em milestones. Aprove cada entrega no seu tempo. O
+                        pagamento só é liberado depois do seu OK — sem adiantamentos
+                        cegos.
+                    </p>
                 </div>
+            </div>
+            <div class="lp-section-cta">
+                <a href="/register?role=client" class="btn btn-primary btn-lg">Quero contratar</a>
+            </div>
+        </div>
+    </section>
+
+    @* ── PARA FREELANCERS ─────────────────────────────────────────────── *@
+    <section class="lp-section" id="para-profissionais">
+        <div class="container">
+            <div class="lp-section-head">
+                <div class="lp-section-badge">Para profissionais</div>
+                <h2>Para quem vive de freelas</h2>
+                <p>O modelo é simples: você só paga quando recebe.</p>
+            </div>
+            <div class="lp-steps">
+                <div class="lp-step">
+                    <div class="lp-step-num" aria-hidden="true">&#128640;</div>
+                    <h3>Comece sem custo</h3>
+                    <p>
+                        Crie seu perfil, adicione suas habilidades e portfólio, e já
+                        comece a enviar propostas. Não cobramos para você se cadastrar
+                        ou aplicar — nem agora, nem nunca.
+                    </p>
+                </div>
+                <div class="lp-step">
+                    <div class="lp-step-num" aria-hidden="true">&#127919;</div>
+                    <h3>Visibilidade igual para todos</h3>
+                    <p>
+                        Aqui não existe selo dourado, plano premium nem destaque pago.
+                        Quem ranqueia melhor é quem entrega — quem tem boas avaliações
+                        e perfil completo.
+                    </p>
+                </div>
+                <div class="lp-step">
+                    <div class="lp-step-num" aria-hidden="true">&#128181;</div>
+                    <h3>Receba com previsibilidade</h3>
+                    <p>
+                        Pagamento por etapas, taxa fixa transparente
+                        (<strong>12% + R$2,99</strong>) só sobre o que você recebe.
+                        Sem assinatura mensal, sem cobrança recorrente.
+                    </p>
+                </div>
+            </div>
+            <div class="lp-section-cta">
+                <a href="/register?role=freelancer" class="btn btn-primary btn-lg">Quero receber propostas</a>
+            </div>
+        </div>
+    </section>
+
+    @* ── FAQ ─────────────────────────────────────────────────────────── *@
+    <section class="lp-section alt" id="faq">
+        <div class="container" style="max-width:820px">
+            <div class="lp-section-head">
+                <div class="lp-section-badge">Perguntas frequentes</div>
+                <h2>Tem dúvida? A resposta provavelmente está aqui</h2>
+                <p>Se restar alguma pergunta, escreva para contato@decidi.com.br — respondemos no mesmo dia útil.</p>
+            </div>
+            <div class="lp-faq">
+                @foreach (var item in faqItems)
+                {
+                    <details class="lp-faq-item">
+                        <summary>@item.Question</summary>
+                        <div class="lp-faq-answer">@item.Answer</div>
+                    </details>
+                }
             </div>
         </div>
     </section>
@@ -398,11 +563,11 @@ else
         <div class="container">
             <h2>Pronto para <span class="gradient-text">decidir</span>?</h2>
             <p>
-                Cadastre-se gratuitamente e comece a conectar talento ao projeto certo.
-                Sem mensalidade. Sem surpresas.
+                Crie sua conta em menos de 30 segundos. Publicação grátis para clientes,
+                cadastro grátis para profissionais. Você decide quando começa.
             </p>
             <div class="lp-cta-actions">
-                <a href="/register" class="btn btn-primary btn-xl">Criar Conta Grátis</a>
+                <a href="/register" class="btn btn-primary btn-xl">Criar conta grátis</a>
                 <a href="/login" class="btn btn-ghost btn-xl">Já tenho conta</a>
             </div>
         </div>
@@ -417,6 +582,29 @@ else
     private int categoryCount;
     private int projectCount;
     private string heroHint = string.Empty;
+
+    // Mantemos o mesmo conteúdo do JSON-LD FAQPage no markup visível —
+    // se mudar um, mude o outro (a duplicação é proposital: leitor humano + rich snippet).
+    private record FaqItem(string Question, string Answer);
+    private static readonly FaqItem[] faqItems =
+    [
+        new("Quanto custa publicar um projeto?",
+            "Publicar é gratuito e ilimitado. Você só paga R$3,99 quando decidir contratar um profissional. Sem mensalidade, sem pacotes, sem destaque pago."),
+        new("Como o profissional recebe pelo trabalho?",
+            "Cada projeto pode ser dividido em milestones. O pagamento de cada etapa é liberado para o profissional quando o cliente aprova a entrega. Sobre o valor recebido incidem 12% de taxa da plataforma mais R$2,99 fixos por transação."),
+        new("E se a entrega não for o combinado?",
+            "O pagamento da milestone só é liberado após sua aprovação. Em caso de impasse, o histórico fica registrado no chat (incluindo arquivos e prazos) e nossa equipe pode mediar a discussão."),
+        new("Como saber se um profissional é confiável?",
+            "Cada profissional tem perfil público com bio, habilidades, portfólio, projetos concluídos e avaliações reais de clientes anteriores. As avaliações ficam privadas até as duas partes se avaliarem, evitando retaliação."),
+        new("Posso fechar negócio fora da plataforma?",
+            "Não. As mensagens são monitoradas até a contratação e contatos pessoais (telefone, e-mail, redes sociais) são removidos automaticamente do chat. Isso protege cliente e profissional contra fraudes, garante o histórico do contrato e o pagamento por etapas."),
+        new("Há plano premium ou destaque pago?",
+            "Não. Não vendemos visibilidade. Todo profissional aparece igualmente nas buscas dos clientes. Quem se destaca é quem entrega bons trabalhos e acumula boas avaliações."),
+        new("Quanto tempo leva para receber propostas?",
+            "Em média, as primeiras propostas chegam nos primeiros 30 minutos após a publicação. Projetos com descrição detalhada atraem propostas mais qualificadas."),
+        new("Quais categorias de profissionais estão disponíveis?",
+            "Desenvolvimento Web e Mobile, Design Gráfico, Marketing Digital, Redação e Tradução, Consultoria, Vídeo e Animação, Engenharia de Software, Suporte Técnico, Financeiro e Contabilidade — entre outras.")
+    ];
 
     protected override async Task OnInitializedAsync()
     {

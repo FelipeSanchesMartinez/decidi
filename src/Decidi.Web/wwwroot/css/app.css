@@ -1319,6 +1319,59 @@ select.form-control { appearance: auto; }
 .category-card .arrow { color: var(--brand-teal); font-size: 1.2rem; margin-top: 0.5rem; transition: transform 0.2s; }
 .category-card:hover .arrow { transform: translateX(4px); }
 
+/* CTA centralizado abaixo de uma seção (ex: "Como funciona" → publicar) */
+.lp-section-cta {
+    margin-top: 2.5rem;
+    text-align: center;
+}
+
+/* ── FAQ (accordion nativo com <details>) ────────────────────────── */
+.lp-faq {
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+    margin-top: 1.5rem;
+}
+.lp-faq-item {
+    background: var(--white);
+    border: 1px solid var(--gray-100);
+    border-radius: var(--radius-card);
+    transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+.lp-faq-item[open] {
+    border-color: var(--brand-teal);
+    box-shadow: var(--shadow-sm);
+}
+.lp-faq-item summary {
+    list-style: none;
+    cursor: pointer;
+    padding: 1.1rem 1.4rem;
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: 1rem;
+    color: var(--gray-900);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+}
+.lp-faq-item summary::-webkit-details-marker { display: none; }
+.lp-faq-item summary::after {
+    content: '+';
+    font-size: 1.4rem;
+    color: var(--brand-teal);
+    flex-shrink: 0;
+    transition: transform var(--transition-fast);
+    line-height: 1;
+}
+.lp-faq-item[open] summary::after { content: '−'; }
+.lp-faq-answer {
+    padding: 0 1.4rem 1.2rem;
+    font-size: 0.95rem;
+    line-height: 1.65;
+    color: var(--gray-600);
+}
+
 /* ── CTA ──────────────────────────────────────────────────────────── */
 .lp-cta {
     padding: 5rem 0;
