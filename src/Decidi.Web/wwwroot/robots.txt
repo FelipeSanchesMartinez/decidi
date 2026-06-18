@@ -1,0 +1,22 @@
+User-agent: *
+Allow: /
+Allow: /projects
+Allow: /termos
+Allow: /privacidade
+Allow: /lgpd
+Allow: /login
+Allow: /register
+
+Disallow: /profile
+Disallow: /profile/edit
+Disallow: /onboarding
+Disallow: /chat
+Disallow: /projects/create
+Disallow: /projects/my
+Disallow: /proposals/my
+Disallow: /confirm-email
+Disallow: /reset-password
+Disallow: /forgot-password
+Disallow: /email-confirmation-pending
+
+Sitemap: https://decidi.com.br/sitemap.xml

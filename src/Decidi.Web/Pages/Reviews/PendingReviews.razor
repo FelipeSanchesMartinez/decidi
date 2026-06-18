@@ -1,0 +1,60 @@
+@page "/reviews/pending"
+@attribute [Authorize]
+@inject ApiClient Api
+@inject NavigationManager Navigation
+
+<PageTitle>Avaliações pendentes - decidi</PageTitle>
+
+<div class="container" style="max-width:780px;margin:0 auto;padding:2rem 1.5rem">
+    <div style="margin-bottom:2rem">
+        <h1 style="font-size:1.75rem;margin-bottom:0.25rem">Avaliações pendentes</h1>
+        <p class="text-muted">Projetos concluídos onde você ainda não avaliou o outro lado. Sua nota é privada até a outra pessoa avaliar você (ou até 14 dias).</p>
+    </div>
+
+    @if (loading)
+    {
+        <SkeletonCard Count="3" Lines="2" />
+    }
+    else if (pending is null || !pending.Any())
+    {
+        <EmptyState Title="Tudo em dia!"
+                    Message="Nenhuma avaliação pendente. Quando seus projetos forem concluídos, eles aparecerão aqui.">
+            <Icon>
+                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--success)" stroke-width="1.5">
+                    <polyline points="20 6 9 17 4 12"/>
+                </svg>
+            </Icon>
+        </EmptyState>
+    }
+    else
+    {
+        <div style="display:flex;flex-direction:column;gap:0.85rem">
+            @foreach (var p in pending)
+            {
+                <div class="pending-review-card">
+                    <Avatar Name="@p.CounterpartyName" Url="@p.CounterpartyAvatarUrl" Size="md" />
+                    <div class="prc-body">
+                        <div class="prc-title">@p.ProjectTitle</div>
+                        <div class="prc-meta">
+                            Avalie <strong>@p.CounterpartyName</strong> ·
+                            concluído em @p.ProjectCompletedAt.ToLocalTime().ToString("dd/MM/yyyy")
+                        </div>
+                    </div>
+                    <a class="btn btn-primary btn-sm" href="@($"/projects/{p.ProjectId}#review")">Avaliar</a>
+                </div>
+            }
+        </div>
+    }
+</div>
+
+@code {
+    private IEnumerable<PendingReviewDto>? pending;
+    private bool loading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try { pending = await Api.GetPendingReviewsAsync(); }
+        catch { pending = []; }
+        loading = false;
+    }
+}

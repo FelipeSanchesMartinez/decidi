@@ -1,0 +1,41 @@
+@* Botão de envio com proteção contra duplo clique e estado de loading consistente.
+   Use IsSubmitting para o estado controlado pelo handler async (fica disabled sozinho). *@
+
+<button type="@Type"
+        class="btn @Variant @CssClass"
+        style="@Style"
+        disabled="@(IsSubmitting || Disabled)"
+        @onclick="HandleClick"
+        @onclick:preventDefault="PreventDefault"
+        @onclick:stopPropagation="StopPropagation"
+        aria-busy="@(IsSubmitting ? "true" : "false")">
+    @if (IsSubmitting)
+    {
+        <span class="btn-spinner" aria-hidden="true"></span>
+        <span>@(string.IsNullOrWhiteSpace(BusyText) ? "Processando..." : BusyText)</span>
+    }
+    else
+    {
+        @ChildContent
+    }
+</button>
+
+@code {
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+    [Parameter] public string Type { get; set; } = "submit";
+    [Parameter] public string Variant { get; set; } = "btn-primary";
+    [Parameter] public string? CssClass { get; set; }
+    [Parameter] public string? Style { get; set; }
+    [Parameter] public string? BusyText { get; set; }
+    [Parameter] public bool IsSubmitting { get; set; }
+    [Parameter] public bool Disabled { get; set; }
+    [Parameter] public bool StopPropagation { get; set; }
+    [Parameter] public bool PreventDefault { get; set; }
+    [Parameter] public EventCallback OnClick { get; set; }
+
+    private async Task HandleClick()
+    {
+        if (IsSubmitting || Disabled) return;
+        if (OnClick.HasDelegate) await OnClick.InvokeAsync();
+    }
+}

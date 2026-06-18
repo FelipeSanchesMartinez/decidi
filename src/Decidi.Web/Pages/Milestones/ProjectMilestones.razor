@@ -1,0 +1,231 @@
+@page "/projects/{ProjectId:guid}/milestones"
+@attribute [Authorize]
+@inject ApiClient Api
+@inject JwtAuthStateProvider AuthState
+@using System.Security.Claims
+
+<PageTitle>Milestones - decidi</PageTitle>
+
+<div class="container" style="max-width:780px;margin:0 auto;padding:2rem 1.5rem">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.5rem">
+        <h1 style="font-size:1.75rem;margin:0">Milestones</h1>
+        @if (isClient)
+        {
+            <button class="btn @(showForm ? "btn-outline" : "btn-primary") btn-sm" @onclick="() => showForm = !showForm">
+                @if (showForm)
+                {
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                    <span>Cancelar</span>
+                }
+                else
+                {
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+                    <span>Adicionar</span>
+                }
+            </button>
+        }
+    </div>
+    <p class="text-muted" style="margin-bottom:1.5rem">
+        @if (isClient)
+        {
+            <span>Divida o projeto em etapas e acompanhe o progresso de cada entrega.</span>
+        }
+        else
+        {
+            <span>Acompanhe as entregas e inicie cada etapa quando estiver pronto.</span>
+        }
+    </p>
+
+    @if (showForm)
+    {
+        <div class="card" style="padding:2rem;border-left:4px solid var(--brand-teal);margin-bottom:1.5rem">
+            <h3 style="font-size:1.1rem;margin-bottom:1rem">Novo Milestone</h3>
+            <EditForm Model="newMilestone" OnValidSubmit="CreateMilestone" FormName="milestone">
+                <DataAnnotationsValidator />
+                <div class="form-group">
+                    <label>Título <span style="color:var(--error)">*</span></label>
+                    <InputText class="form-control" @bind-Value="newMilestone.Title"
+                        placeholder="Ex: Entrega do layout aprovado" />
+                    <ValidationMessage For="@(() => newMilestone.Title)" />
+                    <span class="form-hint">Descreva brevemente o que será entregue nesta etapa.</span>
+                </div>
+                <div class="form-group">
+                    <label>Descrição</label>
+                    <InputTextArea class="form-control" @bind-Value="newMilestone.Description" rows="3"
+                        placeholder="Detalhe o que inclui esta etapa, critérios de aceitação, etc..." />
+                    <span class="form-hint">Opcional. Quanto mais detalhado, mais fácil a aprovação.</span>
+                </div>
+                <div class="form-row">
+                    <div class="form-group" style="flex:1">
+                        <label>Valor (R$) <span style="color:var(--error)">*</span></label>
+                        <InputNumber class="form-control" @bind-Value="newMilestone.Amount" />
+                        <ValidationMessage For="@(() => newMilestone.Amount)" />
+                        <span class="form-hint">Valor que será pago ao concluir esta etapa.</span>
+                    </div>
+                    <div class="form-group" style="flex:1">
+                        <label>Prazo</label>
+                        <InputDate class="form-control" @bind-Value="newMilestone.DueDate" />
+                        <span class="form-hint">Opcional. Data esperada de entrega.</span>
+                    </div>
+                </div>
+                <div style="display:flex;gap:0.75rem">
+                    <button type="submit" class="btn btn-primary">Criar Milestone</button>
+                    <button type="button" class="btn btn-outline" @onclick="() => showForm = false">Cancelar</button>
+                </div>
+            </EditForm>
+        </div>
+    }
+
+    @if (loading)
+    {
+        <SkeletonCard Count="3" Lines="2" />
+    }
+    else if (milestones is null || !milestones.Any())
+    {
+        <EmptyState Title="Nenhum milestone criado"
+                    Message="@(isClient ? "Crie milestones para organizar as entregas e pagamentos do projeto." : "O cliente ainda não criou milestones para este projeto.")">
+            <Icon>
+                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--gray-300)" stroke-width="1.5">
+                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                    <polyline points="22 4 12 14.01 9 11.01"/>
+                </svg>
+            </Icon>
+        </EmptyState>
+    }
+    else
+    {
+        @foreach (var ms in milestones.OrderBy(m => m.Order))
+        {
+            <div class="milestone-item">
+                <div class="milestone-order">@ms.Order</div>
+                <div class="milestone-info">
+                    <strong>@ms.Title</strong>
+                    @if (!string.IsNullOrEmpty(ms.Description))
+                    {
+                        <p style="font-size:0.85rem;color:var(--gray-500);margin:0.25rem 0 0">@ms.Description</p>
+                    }
+                    @if (ms.DueDate.HasValue)
+                    {
+                        <span style="font-size:0.8rem;color:var(--gray-400);display:inline-flex;align-items:center;gap:0.25rem;margin-top:0.25rem">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                            Prazo: @ms.DueDate.Value.ToString("dd/MM/yyyy")
+                        </span>
+                    }
+                </div>
+                <div style="text-align:right">
+                    <div class="milestone-amount">R$ @ms.Amount.ToString("N0")</div>
+                    <StatusBadge Milestone="@ms.Status" />
+                    @{
+                        var action = GetNextAction(ms.Status);
+                    }
+                    @if (action is not null && CanAct(ms.Status))
+                    {
+                        <button class="btn btn-sm btn-primary" style="margin-top:0.375rem"
+                                @onclick="() => UpdateStatus(ms.Id, action.Value)">
+                            @GetActionText(action.Value)
+                        </button>
+                    }
+                </div>
+            </div>
+        }
+
+        <div class="card" style="margin-top:1.25rem;padding:1.25rem 1.5rem">
+            <div style="display:flex;justify-content:space-between;align-items:center">
+                <strong style="font-family:var(--font-display)">Total do projeto</strong>
+                <strong class="budget" style="font-size:1.15rem">R$ @milestones.Sum(m => m.Amount).ToString("N0")</strong>
+            </div>
+            <div style="display:flex;justify-content:space-between;margin-top:0.375rem;font-size:0.85rem;color:var(--gray-500)">
+                <span>Pago até agora</span>
+                <span style="color:var(--success);font-weight:600">R$ @milestones.Where(m => m.Status == MilestoneStatus.Paid).Sum(m => m.Amount).ToString("N0")</span>
+            </div>
+            @{
+                var total = milestones.Sum(m => m.Amount);
+                var paid = milestones.Where(m => m.Status == MilestoneStatus.Paid).Sum(m => m.Amount);
+                var pct = total > 0 ? (int)(paid / total * 100) : 0;
+            }
+            <div class="progress-bar" style="margin-top:0.75rem">
+                <div class="progress-fill" style="width:@(pct)%"></div>
+            </div>
+            <div style="text-align:right;font-size:0.75rem;color:var(--gray-400);margin-top:0.25rem">@pct% concluído</div>
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public Guid ProjectId { get; set; }
+
+    private List<MilestoneDto>? milestones;
+    private CreateMilestoneRequest newMilestone = new();
+    private bool loading = true;
+    private bool showForm;
+    private bool isClient;
+    private bool isFreelancer;
+    private string? currentUserId;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthState.GetAuthenticationStateAsync();
+        currentUserId = authState.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        var role = authState.User.FindFirst("role")?.Value;
+        isClient = role == "Client";
+        isFreelancer = role == "Freelancer";
+
+        newMilestone.ProjectId = ProjectId;
+        await LoadMilestones();
+    }
+
+    private async Task LoadMilestones()
+    {
+        loading = true;
+        var result = await Api.GetProjectMilestonesAsync(ProjectId);
+        milestones = result?.ToList();
+        if (milestones is not null)
+            newMilestone.Order = milestones.Count + 1;
+        loading = false;
+    }
+
+    private async Task CreateMilestone()
+    {
+        var result = await Api.CreateMilestoneAsync(newMilestone);
+        if (result is null) return; // erro já toastado; preserva o formulário para retentativa
+
+        newMilestone = new() { ProjectId = ProjectId };
+        showForm = false;
+        await LoadMilestones();
+    }
+
+    private async Task UpdateStatus(Guid id, MilestoneStatus newStatus)
+    {
+        var result = await Api.UpdateMilestoneStatusAsync(id, new UpdateMilestoneStatusRequest { NewStatus = newStatus });
+        if (result is null) return;
+        await LoadMilestones();
+    }
+
+    private MilestoneStatus? GetNextAction(MilestoneStatus current) => current switch
+    {
+        MilestoneStatus.Pending => MilestoneStatus.InProgress,
+        MilestoneStatus.InProgress => MilestoneStatus.Submitted,
+        MilestoneStatus.Submitted => MilestoneStatus.Approved,
+        MilestoneStatus.Approved => MilestoneStatus.Paid,
+        _ => null
+    };
+
+    private bool CanAct(MilestoneStatus current) => current switch
+    {
+        MilestoneStatus.Pending => isFreelancer,
+        MilestoneStatus.InProgress => isFreelancer,
+        MilestoneStatus.Submitted => isClient,
+        MilestoneStatus.Approved => isClient,
+        _ => false
+    };
+
+    private static string GetActionText(MilestoneStatus s) => s switch
+    {
+        MilestoneStatus.InProgress => "Iniciar",
+        MilestoneStatus.Submitted => "Entregar",
+        MilestoneStatus.Approved => "Aprovar",
+        MilestoneStatus.Paid => "Pagar",
+        _ => ""
+    };
+
+}

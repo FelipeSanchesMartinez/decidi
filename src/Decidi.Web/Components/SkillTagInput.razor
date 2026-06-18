@@ -1,0 +1,242 @@
+@inject AppState State
+
+<div class="skill-tag-input">
+    @if (allSkills is not null)
+    {
+        @* ── Selected skills (always visible at top) ── *@
+        @if (SelectedSkills.Count > 0)
+        {
+            <div class="sti-selected">
+                <div class="sti-selected-label">Selecionadas (@SelectedSkills.Count)</div>
+                <div class="skill-group-tags">
+                    @foreach (var name in SelectedSkills)
+                    {
+                        <button type="button" class="skill-tag selected" @onclick="() => RemoveSkill(name)">
+                            @name <span class="skill-tag-remove">&times;</span>
+                        </button>
+                    }
+                </div>
+            </div>
+        }
+
+        @* ── Search bar ── *@
+        <div class="sti-search-row">
+            <div class="sti-search-wrap">
+                <svg class="sti-search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                     stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                <input class="sti-search" placeholder="Buscar habilidade... (ex: React, Python, Figma)"
+                       @bind="searchQuery" @bind:event="oninput" @bind:after="ApplyFilters" />
+                @if (!string.IsNullOrEmpty(searchQuery))
+                {
+                    <button type="button" class="sti-search-clear" @onclick="ClearSearch">&times;</button>
+                }
+            </div>
+        </div>
+
+        @* ── Category filter tabs ── *@
+        <div class="sti-categories">
+            <button type="button" class="sti-cat @(activeGroup == null && string.IsNullOrEmpty(searchQuery) ? "active" : "")"
+                    @onclick="() => SetGroup(null)">Todas</button>
+            @foreach (var group in availableGroups)
+            {
+                <button type="button" class="sti-cat @(activeGroup == group ? "active" : "")"
+                        @onclick="() => SetGroup(group)">@group</button>
+            }
+        </div>
+
+        @* ── Filtered skills ── *@
+        @if (visibleSkills.Any())
+        {
+            <div class="sti-results">
+                @foreach (var group in visibleSkills.GroupBy(s => s.Group).OrderBy(g => g.Key))
+                {
+                    <div class="skill-group">
+                        <div class="skill-group-label">@group.Key</div>
+                        <div class="skill-group-tags">
+                            @foreach (var skill in group)
+                            {
+                                var isSelected = SelectedSkills.Contains(skill.Name);
+                                <button type="button"
+                                        class="skill-tag @(isSelected ? "selected" : "")"
+                                        @onclick="() => ToggleSkill(skill.Name)">
+                                    @skill.Name
+                                    @if (isSelected)
+                                    {
+                                        <span class="skill-tag-remove">&times;</span>
+                                    }
+                                </button>
+                            }
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+        else if (!string.IsNullOrEmpty(searchQuery))
+        {
+            <div class="sti-empty">
+                <p>Nenhuma habilidade encontrada para "<strong>@searchQuery</strong>"</p>
+                <p class="sti-empty-hint">Tente um nome diferente ou adicione como personalizada abaixo.</p>
+            </div>
+        }
+        else if (activeGroup is null)
+        {
+            <div class="sti-empty">
+                <p>Selecione uma categoria acima ou digite para buscar</p>
+            </div>
+        }
+
+        @* ── Custom skill ── *@
+        <div class="sti-custom">
+            <span class="sti-custom-label">Não encontrou? Adicione:</span>
+            <div class="skill-custom-input">
+                <input class="form-control" placeholder="Nome da habilidade..."
+                       @bind="customInput" @bind:event="oninput"
+                       @onkeydown="HandleKeyDown" />
+                <button type="button" class="btn btn-outline btn-sm" @onclick="AddCustomSkill"
+                        disabled="@string.IsNullOrWhiteSpace(customInput)">
+                    + Adicionar
+                </button>
+            </div>
+        </div>
+    }
+    else
+    {
+        <div class="loading"><div class="spinner"></div>Carregando habilidades...</div>
+    }
+</div>
+
+@code {
+    [Parameter] public List<string> SelectedSkills { get; set; } = [];
+    [Parameter] public EventCallback<List<string>> SelectedSkillsChanged { get; set; }
+    [Parameter] public string? FilterGroup { get; set; }
+
+    private IEnumerable<SkillDto>? allSkills;
+    private List<SkillDto> visibleSkills = [];
+    private List<string> availableGroups = [];
+    private string searchQuery = "";
+    private string? activeGroup;
+    private string customInput = "";
+    private string? lastFilterGroup;
+
+    protected override async Task OnInitializedAsync()
+    {
+        allSkills = await State.GetSkillsAsync();
+        if (allSkills is not null)
+        {
+            availableGroups = allSkills.Select(s => s.Group).Distinct().OrderBy(g => g).ToList();
+            if (!string.IsNullOrEmpty(FilterGroup))
+            {
+                activeGroup = FilterGroup;
+                lastFilterGroup = FilterGroup;
+            }
+        }
+        ApplyFilters();
+    }
+
+    protected override void OnParametersSet()
+    {
+        if (lastFilterGroup != FilterGroup)
+        {
+            lastFilterGroup = FilterGroup;
+            activeGroup = string.IsNullOrEmpty(FilterGroup) ? null : FilterGroup;
+            ApplyFilters();
+        }
+    }
+
+    private void ApplyFilters()
+    {
+        if (allSkills is null) { visibleSkills = []; return; }
+
+        IEnumerable<SkillDto> source = allSkills;
+
+        // When searching, search across ALL skills (ignore group filter)
+        if (!string.IsNullOrWhiteSpace(searchQuery))
+        {
+            var q = searchQuery.Trim();
+            visibleSkills = source.Where(s =>
+                s.Name.Contains(q, StringComparison.OrdinalIgnoreCase) ||
+                s.Group.Contains(q, StringComparison.OrdinalIgnoreCase)).ToList();
+            return;
+        }
+
+        // Filter by group
+        if (!string.IsNullOrEmpty(activeGroup))
+        {
+            visibleSkills = source.Where(s =>
+                string.Equals(s.Group, activeGroup, StringComparison.OrdinalIgnoreCase)).ToList();
+            return;
+        }
+
+        // No filter, no search → show nothing (user must interact first)
+        visibleSkills = [];
+    }
+
+    private void SetGroup(string? group)
+    {
+        activeGroup = group;
+        searchQuery = "";
+        if (group is null)
+        {
+            // "Todas" shows all skills
+            visibleSkills = allSkills?.ToList() ?? [];
+        }
+        else
+        {
+            ApplyFilters();
+        }
+    }
+
+    private void ClearSearch()
+    {
+        searchQuery = "";
+        ApplyFilters();
+    }
+
+    private async Task ToggleSkill(string name)
+    {
+        if (SelectedSkills.Contains(name))
+            SelectedSkills.Remove(name);
+        else
+            SelectedSkills.Add(name);
+        await SelectedSkillsChanged.InvokeAsync(SelectedSkills);
+    }
+
+    private async Task RemoveSkill(string name)
+    {
+        SelectedSkills.Remove(name);
+        await SelectedSkillsChanged.InvokeAsync(SelectedSkills);
+    }
+
+    private async Task AddCustomSkill()
+    {
+        var name = customInput.Trim();
+        if (string.IsNullOrWhiteSpace(name)) return;
+
+        var normalized = NormalizeName(name);
+        var existingMatch = allSkills?.FirstOrDefault(s => NormalizeName(s.Name) == normalized);
+
+        if (existingMatch is not null)
+        {
+            if (!SelectedSkills.Contains(existingMatch.Name))
+                SelectedSkills.Add(existingMatch.Name);
+        }
+        else
+        {
+            if (!SelectedSkills.Any(s => NormalizeName(s) == normalized))
+                SelectedSkills.Add(name);
+        }
+
+        customInput = "";
+        await SelectedSkillsChanged.InvokeAsync(SelectedSkills);
+    }
+
+    private async Task HandleKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter") await AddCustomSkill();
+    }
+
+    private static string NormalizeName(string name) =>
+        name.Trim().ToLowerInvariant()
+            .Replace("-", "").Replace("_", "")
+            .Replace(" ", "").Replace(".", "");
+}

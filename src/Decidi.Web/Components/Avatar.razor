@@ -1,0 +1,42 @@
+@* Avatar redondo com gradient da marca. Url tem prioridade; caso ausente ou inválida,
+   cai no fallback da primeira letra de Name (surrogate-safe para emojis e acentos).
+   Size aceita: xs (28), sm (36), md (44, padrão), lg (52), xl (80). *@
+
+<div class="avatar @SizeClass @CssClass" title="@Name">
+    @if (!string.IsNullOrWhiteSpace(Url))
+    {
+        <img src="@Url" alt="@(Name ?? "Avatar")" loading="lazy" />
+    }
+    else
+    {
+        <span aria-hidden="true">@Initial</span>
+    }
+</div>
+
+@code {
+    [Parameter] public string? Name { get; set; }
+    [Parameter] public string? Url { get; set; }
+    [Parameter] public string Size { get; set; } = "md";
+    [Parameter] public string? CssClass { get; set; }
+
+    private string SizeClass => Size?.ToLowerInvariant() switch
+    {
+        "xs" => "avatar-xs",
+        "sm" => "avatar-sm",
+        "lg" => "avatar-lg",
+        "xl" => "avatar-xl",
+        _ => "avatar-md"
+    };
+
+    private string Initial
+    {
+        get
+        {
+            if (string.IsNullOrWhiteSpace(Name)) return "?";
+            var enumerator = System.Globalization.StringInfo.GetTextElementEnumerator(Name.Trim());
+            return enumerator.MoveNext()
+                ? ((string)enumerator.Current).ToUpperInvariant()
+                : "?";
+        }
+    }
+}

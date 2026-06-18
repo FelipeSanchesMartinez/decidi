@@ -1,0 +1,179 @@
+@page "/profile"
+@attribute [Authorize]
+@inject ApiClient Api
+@inject NavigationManager Navigation
+
+<PageTitle>Meu Perfil - decidi</PageTitle>
+
+<div class="container" style="max-width:700px;margin:0 auto;padding:2rem 1.5rem">
+    @if (loading)
+    {
+        <SkeletonCard Count="2" Lines="4" />
+    }
+    else if (profile is null)
+    {
+        <EmptyState Title="Não conseguimos carregar seu perfil"
+                    Message="Verifique sua conexão e tente novamente.">
+            <CallToAction>
+                <a class="btn btn-outline" href="/profile">Tentar novamente</a>
+            </CallToAction>
+        </EmptyState>
+    }
+    else
+    {
+        <div class="profile-header-card">
+            <div class="profile-header-top">
+                <Avatar Name="@profile.FullName" Url="@profile.AvatarUrl" Size="xl" />
+                <div class="profile-header-info">
+                    <h1 class="profile-name">@profile.FullName</h1>
+                    <p class="text-muted">@profile.Email</p>
+                    <span class="badge @(profile.Role == UserRole.Client ? "badge-primary" : "badge-success")">
+                        @(profile.Role == UserRole.Client ? "Cliente" : "Freelancer")
+                    </span>
+                </div>
+            </div>
+        </div>
+
+        @if (profile.Role == UserRole.Freelancer)
+        {
+            <div class="profile-section-card" style="@(completionPct == 100 ? "border-left:4px solid var(--success)" : "border-left:4px solid var(--brand-blue)")">
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.75rem">
+                    <h2 class="section-title" style="margin:0">
+                        Perfil @completionPct% completo
+                    </h2>
+                    @if (completionPct == 100)
+                    {
+                        <span class="badge badge-success">Completo</span>
+                    }
+                </div>
+                <div class="progress-bar" style="margin-bottom:0.75rem">
+                    <div class="progress-fill" style="width:@completionPct%"></div>
+                </div>
+                <div class="profile-checklist">
+                    @foreach (var item in completionItems)
+                    {
+                        <div class="profile-check-item @(item.Done ? "done" : "")">
+                            <span class="profile-check-icon">@(item.Done ? "✓" : "○")</span>
+                            <span>@item.Label</span>
+                            @if (item.Done)
+                            {
+                                <span class="profile-check-pts">+@item.Points pts</span>
+                            }
+                        </div>
+                    }
+                </div>
+            </div>
+
+            @if (!string.IsNullOrEmpty(profile.Title))
+            {
+                <div class="profile-section-card">
+                    <h2 class="section-title">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>
+                        Profissional
+                    </h2>
+                    <p style="font-size:1.1rem;font-weight:600;color:var(--gray-900)">@profile.Title</p>
+                    @if (profile.HourlyRate.HasValue)
+                    {
+                        <p class="budget mt-1">R$ @profile.HourlyRate.Value.ToString("N0")/h</p>
+                    }
+                </div>
+            }
+
+            @if (!string.IsNullOrEmpty(profile.Bio))
+            {
+                <div class="profile-section-card">
+                    <h2 class="section-title">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                        Sobre mim
+                    </h2>
+                    <p style="line-height:1.7;color:var(--gray-700)">@profile.Bio</p>
+                </div>
+            }
+
+            @if (profile.Skills.Count > 0)
+            {
+                <div class="profile-section-card">
+                    <h2 class="section-title">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                        Habilidades
+                    </h2>
+                    <div class="skills">
+                        @foreach (var skill in profile.Skills)
+                        {
+                            <span class="ppc-skill">@skill</span>
+                        }
+                    </div>
+                </div>
+            }
+
+            @if (!string.IsNullOrEmpty(profile.PortfolioUrl))
+            {
+                <div class="profile-section-card">
+                    <h2 class="section-title">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+                        Portfólio
+                    </h2>
+                    <a href="@profile.PortfolioUrl" target="_blank" rel="noopener" class="portfolio-link">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+                        @profile.PortfolioUrl
+                    </a>
+                </div>
+            }
+        }
+
+        <div style="display:flex;gap:0.75rem;margin-top:1.5rem">
+            <a href="/profile/edit" class="btn btn-primary">Editar Perfil</a>
+            @if (profile.Role == UserRole.Freelancer)
+            {
+                <a href="/freelancer/@profile.Id" class="btn btn-outline">Ver Perfil Público</a>
+            }
+        </div>
+    }
+</div>
+
+@code {
+    private UserProfileDto? profile;
+    private bool loading = true;
+    private int completionPct;
+    private List<CheckItem> completionItems = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            profile = await Api.GetProfileAsync();
+            if (profile is not null && profile.Role == UserRole.Freelancer)
+                CalcProfileCompletion();
+        }
+        catch
+        {
+            // Toast já disparado pelo GlobalHttpHandler; manter profile=null e cair na seção de erro.
+        }
+        finally
+        {
+            loading = false;
+        }
+    }
+
+    private record CheckItem(string Label, bool Done, int Points);
+
+    private void CalcProfileCompletion()
+    {
+        if (profile is null) return;
+
+        completionItems =
+        [
+            new("Nome completo", !string.IsNullOrWhiteSpace(profile.FullName), 10),
+            new("Título profissional", !string.IsNullOrWhiteSpace(profile.Title) && profile.Title != "Novo Freelancer", 20),
+            new("Bio (sobre mim)", !string.IsNullOrWhiteSpace(profile.Bio), 20),
+            new("Ao menos 1 habilidade", profile.Skills.Count > 0, 20),
+            new("3+ habilidades", profile.Skills.Count >= 3, 10),
+            new("Valor por hora", profile.HourlyRate.HasValue && profile.HourlyRate > 0, 10),
+            new("Portfólio / link externo", !string.IsNullOrWhiteSpace(profile.PortfolioUrl), 10),
+        ];
+
+        var total = completionItems.Sum(i => i.Points);
+        var earned = completionItems.Where(i => i.Done).Sum(i => i.Points);
+        completionPct = total > 0 ? (int)Math.Round(earned * 100.0 / total) : 0;
+    }
+}

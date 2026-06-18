@@ -1,0 +1,66 @@
+@page "/confirm-email"
+@inject ApiClient Api
+@inject JwtAuthStateProvider AuthState
+@inject NavigationManager Navigation
+
+<PageTitle>Confirmar E-mail - decidi</PageTitle>
+
+<div class="auth-container">
+    <div class="card" style="padding:2.5rem;text-align:center">
+        @if (loading)
+        {
+            <div class="loading"><div class="spinner"></div>Confirmando seu e-mail...</div>
+        }
+        else if (success)
+        {
+            <div style="font-size:3rem;margin-bottom:1rem">&#10003;</div>
+            <h1 style="color:var(--success)">E-mail confirmado!</h1>
+            <p class="text-muted" style="margin:1rem 0 1.5rem">
+                Sua conta foi ativada e você já está logado. Redirecionando...
+            </p>
+        }
+        else
+        {
+            <div style="font-size:3rem;margin-bottom:1rem">&#10005;</div>
+            <h1 style="color:var(--error)">Erro na confirmação</h1>
+            <p class="text-muted" style="margin:1rem 0 1.5rem">
+                @errorMessage
+            </p>
+            <a href="/login" class="btn btn-outline">Voltar ao Login</a>
+        }
+    </div>
+</div>
+
+@code {
+    [SupplyParameterFromQuery] public string? UserId { get; set; }
+    [SupplyParameterFromQuery] public string? Token { get; set; }
+
+    private bool loading = true;
+    private bool success;
+    private string? errorMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (string.IsNullOrEmpty(UserId) || string.IsNullOrEmpty(Token))
+        {
+            loading = false;
+            errorMessage = "Link de confirmação inválido.";
+            return;
+        }
+
+        var response = await Api.ConfirmEmailAsync(UserId, Uri.UnescapeDataString(Token));
+        loading = false;
+        if (response is not null && !string.IsNullOrEmpty(response.Token))
+        {
+            success = true;
+            await AuthState.MarkUserAsAuthenticated(response.Token);
+            await Task.Delay(800);
+            var redirect = response.Role == UserRole.Freelancer ? "/profile/edit" : "/";
+            Navigation.NavigateTo(redirect);
+        }
+        else
+        {
+            errorMessage = "Token de confirmação inválido ou expirado. Tente fazer login e solicitar um novo.";
+        }
+    }
+}

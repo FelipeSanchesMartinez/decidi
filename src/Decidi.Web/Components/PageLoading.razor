@@ -1,0 +1,12 @@
+<div class="page-loading">
+    <div class="page-loading-spinner">
+        <div class="spinner-ring"></div>
+        <div class="spinner-ring"></div>
+        <div class="spinner-ring"></div>
+    </div>
+    <p class="page-loading-text">@(Message ?? "Carregando...")</p>
+</div>
+
+@code {
+    [Parameter] public string? Message { get; set; }
+}

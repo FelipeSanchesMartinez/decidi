@@ -1,0 +1,214 @@
+@page "/projects/create"
+@attribute [Authorize(Roles = "Client")]
+@inject ApiClient Api
+@inject AppState State
+@inject NavigationManager Navigation
+@using Decidi.Web.Components
+
+<PageTitle>Publicar Projeto - decidi</PageTitle>
+
+<div class="container" style="max-width:780px;margin:0 auto;padding:2rem 1.5rem">
+    <div style="margin-bottom:2rem">
+        <h1 style="font-size:1.75rem;margin-bottom:0.25rem">Publicar Projeto</h1>
+        <p class="text-muted">Descreva seu projeto detalhadamente para atrair os melhores profissionais.</p>
+    </div>
+
+    @if (!string.IsNullOrEmpty(errorMessage))
+    {
+        <div class="alert alert-danger">@errorMessage</div>
+    }
+
+    <div class="card" style="padding:2rem">
+        <EditForm Model="model" OnValidSubmit="HandleSubmit" FormName="createproject">
+            <DataAnnotationsValidator />
+
+            <div class="form-group">
+                <label>Título do projeto <span style="color:var(--error)">*</span></label>
+                <InputText class="form-control" @bind-Value="model.Title"
+                    placeholder="Ex: Desenvolvimento de e-commerce em React + Node.js"
+                    autocapitalize="sentences" autocorrect="on" />
+                <ValidationMessage For="@(() => model.Title)" />
+                <span class="form-hint">Seja específico — títulos claros atraem mais propostas.</span>
+            </div>
+
+            <div class="form-group">
+                <label>Descrição detalhada <span style="color:var(--error)">*</span></label>
+                @if (currentTemplate is not null && string.IsNullOrWhiteSpace(model.Description))
+                {
+                    <button type="button" class="btn btn-outline btn-sm" style="margin-bottom:0.5rem" @onclick="ApplyTemplate">
+                        Usar template para @GetCategoryName()
+                    </button>
+                }
+                <InputTextArea class="form-control" @bind-Value="model.Description" rows="6"
+                    placeholder="Descreva o escopo, requisitos técnicos, prazo, referências visuais e qualquer detalhe relevante..."
+                    autocapitalize="sentences" autocorrect="on" />
+                <ValidationMessage For="@(() => model.Description)" />
+                <span class="form-hint">Quanto mais detalhes, melhores serão as propostas recebidas.</span>
+            </div>
+
+            <div class="form-group">
+                <label>Categoria <span style="color:var(--error)">*</span></label>
+                <InputSelect class="form-control" @bind-Value="selectedCategoryId" @bind-Value:after="OnCategoryChanged">
+                    <option value="">Selecione uma categoria...</option>
+                    @if (categories is not null)
+                    {
+                        @foreach (var cat in categories)
+                        {
+                            <option value="@cat.Id">@cat.Name</option>
+                        }
+                    }
+                </InputSelect>
+                <ValidationMessage For="@(() => model.CategoryId)" />
+                <span class="form-hint">A categoria ajuda freelancers a encontrarem seu projeto.</span>
+            </div>
+
+            <div class="form-group">
+                <div class="card" style="background:var(--off-white);padding:1rem;border-radius:12px">
+                    <div style="display:flex;gap:0.6rem;align-items:flex-start">
+                        <span style="font-size:1.3rem">💡</span>
+                        <div>
+                            <strong>Você não precisa definir o valor.</strong>
+                            <p class="text-sm text-muted" style="margin:0.2rem 0 0">
+                                Os profissionais enviam propostas com valores e prazos. Você compara e escolhe a melhor — sem dar âncora de preço.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>Prazo de entrega (opcional)</label>
+                <InputDate class="form-control" @bind-Value="deadlineDate" />
+                <span class="form-hint">Deixe em branco se não houver prazo definido.</span>
+            </div>
+
+            <div class="form-group">
+                <label>Habilidades necessárias</label>
+                <p class="text-muted text-sm mb-1">
+                    @if (!string.IsNullOrEmpty(skillFilterGroup))
+                    {
+                        <span>Filtrando por <strong>@skillFilterGroup</strong>. </span>
+                    }
+                    <span>Busque ou selecione as habilidades que o profissional deve ter.</span>
+                </p>
+                <SkillTagInput @bind-SelectedSkills="selectedSkills" FilterGroup="@skillFilterGroup" />
+            </div>
+
+            <SubmitButton IsSubmitting="@submitting"
+                          Variant="btn-primary" CssClass="btn-lg w-full"
+                          Style="margin-top:1.5rem" BusyText="Publicando...">
+                Publicar Projeto — Grátis
+            </SubmitButton>
+            <p class="text-center text-sm text-muted mt-2">
+                Publicar é grátis. Ao encontrar o profissional ideal e aceitar uma proposta, será cobrada uma única taxa de <strong>R$3,99</strong>.
+            </p>
+        </EditForm>
+    </div>
+</div>
+
+@code {
+    private CreateProjectRequest model = new();
+    private IEnumerable<CategoryDto>? categories;
+    private List<string> selectedSkills = [];
+    private string? errorMessage;
+    private bool submitting;
+    private string selectedCategoryId = "";
+    private string? skillFilterGroup;
+    private DateOnly? deadlineDate;
+    private string? currentTemplate;
+
+    private static readonly Dictionary<string, string> DescriptionTemplates = new(StringComparer.OrdinalIgnoreCase)
+    {
+        { "Desenvolvimento Web", "## Objetivo\nDescreva o objetivo principal do site ou sistema web.\n\n## Funcionalidades\n- [ ] Funcionalidade 1\n- [ ] Funcionalidade 2\n- [ ] Funcionalidade 3\n\n## Tecnologias preferidas\nEx: React, Node.js, .NET, etc.\n\n## Referências visuais\nLinks ou descrição de sites similares ao que deseja.\n\n## Integrações\nAPIs, gateways de pagamento, autenticação, etc.\n\n## Prazo e observações\nInformações adicionais relevantes." },
+        { "Desenvolvimento Mobile", "## Objetivo\nDescreva o objetivo do aplicativo.\n\n## Plataformas\n- [ ] iOS\n- [ ] Android\n- [ ] Ambas\n\n## Funcionalidades principais\n- [ ] Funcionalidade 1\n- [ ] Funcionalidade 2\n- [ ] Funcionalidade 3\n\n## Design\nJá possui protótipo ou design? Se sim, descreva ou anexe referências.\n\n## Integrações\nAPIs, push notifications, login social, etc.\n\n## Prazo e observações\nInformações adicionais relevantes." },
+        { "Design Gráfico", "## Tipo de trabalho\nEx: Logo, identidade visual, material para redes sociais, banner, etc.\n\n## Briefing\nDescreva a marca, público-alvo e a mensagem que deseja transmitir.\n\n## Referências visuais\nLinks ou descrição de estilos que gosta (cores, fontes, mood board).\n\n## Formatos de entrega\nEx: PNG, SVG, AI, PSD, dimensões específicas.\n\n## Observações\nInformações adicionais relevantes." },
+        { "Marketing Digital", "## Objetivo da campanha\nDescreva o que deseja alcançar (leads, vendas, awareness, etc.).\n\n## Canais\n- [ ] Google Ads\n- [ ] Meta Ads (Facebook/Instagram)\n- [ ] SEO\n- [ ] E-mail marketing\n- [ ] Outros:\n\n## Público-alvo\nDescreva o perfil do público.\n\n## Orçamento de mídia\nValor mensal disponível para investimento em anúncios (se aplicável).\n\n## Métricas de sucesso\nComo vai medir o resultado?\n\n## Observações\nInformações adicionais relevantes." },
+        { "Redação e Tradução", "## Tipo de conteúdo\nEx: artigos de blog, tradução, copy para landing page, roteiro, etc.\n\n## Tom de voz\nEx: formal, informal, técnico, persuasivo.\n\n## Volume\nQuantidade de textos, páginas ou palavras.\n\n## Idiomas\nOrigem e destino (para traduções).\n\n## Público-alvo\nDescreva para quem o conteúdo é destinado.\n\n## Observações\nInformações adicionais relevantes." },
+        { "Consultoria", "## Área de consultoria\nEx: TI, processos, negócios, estratégia, etc.\n\n## Problema ou desafio\nDescreva o que precisa resolver ou melhorar.\n\n## Contexto atual\nDescreva a situação atual da empresa ou projeto.\n\n## Entregas esperadas\nEx: relatório, plano de ação, mentoria, análise.\n\n## Observações\nInformações adicionais relevantes." },
+        { "Vídeo e Animação", "## Tipo de vídeo\nEx: institucional, explicativo, animação, motion graphics, edição.\n\n## Duração estimada\nEx: 30s, 1min, 5min.\n\n## Roteiro\nJá possui roteiro ou precisa que o profissional crie?\n\n## Referências\nLinks de vídeos com estilo similar ao desejado.\n\n## Formatos de entrega\nEx: MP4, resolução 1080p/4K, proporção (16:9, 9:16).\n\n## Observações\nInformações adicionais relevantes." },
+        { "Engenharia de Software", "## Escopo do projeto\nDescreva o sistema ou solução a ser desenvolvida.\n\n## Arquitetura\nDescreva requisitos de arquitetura, escalabilidade, etc.\n\n## Stack tecnológica\nTecnologias obrigatórias ou preferidas.\n\n## Infraestrutura\nCloud, CI/CD, containers, etc.\n\n## Requisitos não-funcionais\nPerformance, segurança, disponibilidade.\n\n## Observações\nInformações adicionais relevantes." },
+        { "Suporte Técnico", "## Tipo de suporte\nEx: help desk, suporte N1/N2, administração de servidores, etc.\n\n## Ambiente\nDescreva o ambiente técnico (Windows, Linux, cloud, etc.).\n\n## Horário de cobertura\nEx: comercial, 24/7, plantão.\n\n## Volume estimado\nQuantidade de chamados/mês ou horas.\n\n## Observações\nInformações adicionais relevantes." },
+        { "Financeiro e Contabilidade", "## Tipo de serviço\nEx: contabilidade, fiscal, folha de pagamento, controladoria, etc.\n\n## Porte da empresa\nMEI, ME, EPP, médio porte, etc.\n\n## Regime tributário\nSimples Nacional, Lucro Presumido, Lucro Real.\n\n## Entregas esperadas\nEx: relatórios mensais, DRE, balanço, obrigações acessórias.\n\n## Observações\nInformações adicionais relevantes." },
+    };
+
+    private static readonly Dictionary<string, string> CategoryToSkillGroup = new(StringComparer.OrdinalIgnoreCase)
+    {
+        { "Desenvolvimento Web", "" },
+        { "Desenvolvimento Mobile", "Mobile" },
+        { "Design Gráfico", "Design" },
+        { "Marketing Digital", "Marketing" },
+        { "Engenharia de Software", "" },
+        { "Suporte Técnico", "" },
+    };
+
+    [SupplyParameterFromQuery] public string? Hint { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        categories = await State.GetCategoriesAsync();
+        if (!string.IsNullOrWhiteSpace(Hint) && string.IsNullOrWhiteSpace(model.Title))
+        {
+            var trimmed = Hint.Trim();
+            model.Title = trimmed.Length > 200 ? trimmed[..200] : trimmed;
+        }
+    }
+
+    private void OnCategoryChanged()
+    {
+        if (Guid.TryParse(selectedCategoryId, out var catId))
+        {
+            model.CategoryId = catId;
+            var cat = categories?.FirstOrDefault(c => c.Id == catId);
+            if (cat is not null)
+            {
+                skillFilterGroup = CategoryToSkillGroup.TryGetValue(cat.Name, out var group) && !string.IsNullOrEmpty(group) ? group : null;
+                currentTemplate = DescriptionTemplates.TryGetValue(cat.Name, out var tpl) ? tpl : null;
+            }
+            else
+            {
+                skillFilterGroup = null;
+                currentTemplate = null;
+            }
+        }
+        else
+        {
+            model.CategoryId = Guid.Empty;
+            skillFilterGroup = null;
+            currentTemplate = null;
+        }
+    }
+
+    private void ApplyTemplate()
+    {
+        if (currentTemplate is not null)
+            model.Description = currentTemplate;
+    }
+
+    private string GetCategoryName() =>
+        categories?.FirstOrDefault(c => c.Id == model.CategoryId)?.Name ?? "categoria";
+
+    private async Task HandleSubmit()
+    {
+        submitting = true;
+        errorMessage = null;
+
+        // Convert DateOnly to DateTime UTC to avoid TimeSpan/timezone issues
+        if (deadlineDate.HasValue)
+        {
+            model.Deadline = deadlineDate.Value.ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc);
+        }
+        else
+        {
+            model.Deadline = null;
+        }
+
+        model.RequiredSkills = selectedSkills;
+
+        var result = await Api.CreateProjectAsync(model);
+        if (result is not null)
+            Navigation.NavigateTo($"/projects/{result.Id}");
+        else
+            errorMessage = "Erro ao publicar projeto. Verifique os dados e tente novamente.";
+        submitting = false;
+    }
+}

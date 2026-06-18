@@ -1,0 +1,92 @@
+@* Avaliação por estrelas. Modo interativo: setas ←/→/↑/↓ navegam, espaço/Enter confirma, 1-5 setam direto.
+   Em readonly, mostra a nota com aria-label e sem interatividade.
+   `aria-checked` em cada estrela mantém compatibilidade com leitores de tela em modo radio-group. *@
+
+<div class="star-rating @(ReadOnly ? "read-only" : "interactive")"
+     role="@(ReadOnly ? "img" : "radiogroup")"
+     aria-label="@AriaLabel"
+     title="@DisplayValue"
+     @onkeydown="HandleKey"
+     tabindex="@(ReadOnly ? -1 : 0)">
+    @for (int i = 1; i <= 5; i++)
+    {
+        var star = i;
+        var filled = star <= Value;
+        <span class="star @(filled ? "filled" : "")"
+              role="@(ReadOnly ? null : "radio")"
+              aria-checked="@(ReadOnly ? null : (star == Value ? "true" : "false"))"
+              aria-label="@($"{star} {(star == 1 ? "estrela" : "estrelas")}")"
+              @onclick="() => SetRating(star)"
+              @onmouseover="() => HandleHover(star)"
+              @onmouseout="HandleMouseOut">
+            @(filled || star <= hoverValue ? "★" : "☆")
+        </span>
+    }
+    @if (ShowValue)
+    {
+        <span class="star-value">@DisplayValue</span>
+    }
+</div>
+
+@code {
+    [Parameter] public int Value { get; set; }
+    [Parameter] public EventCallback<int> ValueChanged { get; set; }
+    [Parameter] public bool ReadOnly { get; set; }
+    [Parameter] public bool ShowValue { get; set; }
+    [Parameter] public double DisplayRating { get; set; }
+
+    private int hoverValue;
+    private string DisplayValue => DisplayRating > 0
+        ? DisplayRating.ToString("0.0")
+        : Value > 0 ? Value.ToString("0") : "0";
+
+    private string AriaLabel => ReadOnly
+        ? $"Avaliação: {DisplayValue} de 5"
+        : Value > 0 ? $"Avaliação: {Value} de 5. Use as setas para alterar." : "Sem avaliação. Use as setas para selecionar.";
+
+    private async Task SetRating(int star)
+    {
+        if (ReadOnly) return;
+        Value = star;
+        await ValueChanged.InvokeAsync(Value);
+    }
+
+    private void HandleHover(int star)
+    {
+        if (!ReadOnly) hoverValue = star;
+    }
+
+    private void HandleMouseOut()
+    {
+        hoverValue = 0;
+    }
+
+    private async Task HandleKey(KeyboardEventArgs e)
+    {
+        if (ReadOnly) return;
+
+        // Setas: incremento/decremento dentro de [1, 5]. Wraps NÃO.
+        if (e.Key is "ArrowRight" or "ArrowUp")
+        {
+            var next = Math.Min(5, Value <= 0 ? 1 : Value + 1);
+            if (next != Value) { Value = next; await ValueChanged.InvokeAsync(Value); }
+        }
+        else if (e.Key is "ArrowLeft" or "ArrowDown")
+        {
+            var next = Math.Max(0, Value - 1);
+            if (next != Value) { Value = next; await ValueChanged.InvokeAsync(Value); }
+        }
+        else if (e.Key is "Home")
+        {
+            if (Value != 1) { Value = 1; await ValueChanged.InvokeAsync(Value); }
+        }
+        else if (e.Key is "End")
+        {
+            if (Value != 5) { Value = 5; await ValueChanged.InvokeAsync(Value); }
+        }
+        else if (int.TryParse(e.Key, out var direct) && direct is >= 1 and <= 5)
+        {
+            if (Value != direct) { Value = direct; await ValueChanged.InvokeAsync(Value); }
+        }
+    }
+}

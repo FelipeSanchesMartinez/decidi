@@ -1,0 +1,65 @@
+@if (IsVisible)
+{
+    <div class="modal-overlay" @onclick="Cancel">
+        <div class="modal-dialog"
+             role="dialog"
+             aria-modal="true"
+             aria-labelledby="@TitleId"
+             aria-describedby="@MessageId"
+             @onclick:stopPropagation="true">
+            <div class="modal-header">
+                <h3 id="@TitleId">@Title</h3>
+            </div>
+            <div class="modal-body">
+                <p id="@MessageId">@Message</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline" @onclick="Cancel" disabled="@processing">Cancelar</button>
+                <button type="button" class="btn @ButtonClass" @onclick="Confirm" disabled="@processing" autofocus>
+                    @(processing ? "Processando..." : ConfirmText)
+                </button>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public string Title { get; set; } = "Confirmar ação";
+    [Parameter] public string Message { get; set; } = "Tem certeza?";
+    [Parameter] public string ConfirmText { get; set; } = "Confirmar";
+    [Parameter] public string ButtonClass { get; set; } = "btn-primary";
+    [Parameter] public EventCallback OnConfirm { get; set; }
+    [Parameter] public EventCallback OnCancel { get; set; }
+
+    private bool IsVisible;
+    private bool processing;
+
+    // IDs únicos por instância para aria-labelledby/describedby.
+    private readonly string TitleId = $"cd-title-{Guid.NewGuid():N}";
+    private readonly string MessageId = $"cd-msg-{Guid.NewGuid():N}";
+
+    public void Show() { IsVisible = true; StateHasChanged(); }
+    public void Hide() { IsVisible = false; StateHasChanged(); }
+
+    private async Task Confirm()
+    {
+        if (processing) return;
+        processing = true;
+        try
+        {
+            await OnConfirm.InvokeAsync();
+        }
+        finally
+        {
+            processing = false;
+            Hide();
+        }
+    }
+
+    private async Task Cancel()
+    {
+        if (processing) return;
+        await OnCancel.InvokeAsync();
+        Hide();
+    }
+}

@@ -1,0 +1,297 @@
+@page "/chat/{Id:guid}"
+@attribute [Authorize]
+@inject ApiClient Api
+@inject JwtAuthStateProvider AuthState
+@inject IJSRuntime JS
+@inject NavigationManager Navigation
+@inject IConfiguration Configuration
+@inject ToastService Toast
+@implements IAsyncDisposable
+@using Microsoft.AspNetCore.SignalR.Client
+@using System.Security.Claims
+
+<PageTitle>Chat - decidi</PageTitle>
+
+<div class="container" style="max-width:700px;margin:0 auto">
+    <div class="chat-header-bar">
+        <a href="/chat" class="btn btn-outline btn-sm">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+            Voltar
+        </a>
+        @if (conversation is not null)
+        {
+            <div class="chat-header-info">
+                <Avatar Name="@conversation.OtherUserName" Size="sm" />
+                <div>
+                    <h2 style="margin:0;font-size:1rem;line-height:1.2">@conversation.OtherUserName</h2>
+                    <span style="font-size:0.75rem;color:var(--gray-400)">@conversation.ProjectTitle</span>
+                </div>
+            </div>
+        }
+    </div>
+
+    <div class="chat-watermark">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4z"/>
+        </svg>
+        <span>
+            A decidi monitora mensagens até a contratação. Compartilhar telefone, e-mail ou
+            links externos é proibido — mensagens com contatos são automaticamente censuradas.
+        </span>
+    </div>
+
+    @if (isReconnecting)
+    {
+        <div class="chat-status" role="status" aria-live="polite">
+            <span class="btn-spinner" aria-hidden="true"></span>
+            <span>Reconectando ao chat em tempo real…</span>
+        </div>
+    }
+    else if (hubClosed)
+    {
+        <div class="chat-status chat-status-offline" role="status" aria-live="polite">
+            <span>Sem tempo real no momento — suas mensagens continuam sendo enviadas pelo servidor.</span>
+        </div>
+    }
+
+    <div class="card" style="padding:0;overflow:hidden">
+        <div class="chat-container">
+            <div class="chat-messages" id="chat-messages">
+                @if (messages.Count == 0)
+                {
+                    <div class="chat-empty">
+                        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="var(--gray-200)" stroke-width="1.5">
+                            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+                        </svg>
+                        <p>Nenhuma mensagem ainda. Diga olá!</p>
+                    </div>
+                }
+                else
+                {
+                    @foreach (var msg in messages)
+                    {
+                        <div class="chat-message @(msg.SenderId == currentUserId ? "mine" : "theirs")">
+                            @if (msg.SenderId != currentUserId)
+                            {
+                                <strong style="font-size:0.72rem;opacity:0.8">@msg.SenderName</strong>
+                            }
+                            <div>@msg.Content</div>
+                            <div class="time">@msg.CreatedAt.ToLocalTime().ToString("HH:mm")</div>
+                        </div>
+                    }
+                }
+            </div>
+
+            <div class="chat-input">
+                <input class="form-control" placeholder="Digite uma mensagem..."
+                    @bind="newMessage" @onkeyup="HandleKey"
+                    disabled="@(!isConnected)"
+                    autocomplete="off" autocapitalize="sentences" autocorrect="on" enterkeyhint="send" />
+                <button class="btn btn-primary" @onclick="SendMessage"
+                    disabled="@(sending || string.IsNullOrWhiteSpace(newMessage))">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter] public Guid Id { get; set; }
+
+    private ConversationDto? conversation;
+    private List<MessageDto> messages = new();
+    private string newMessage = "";
+    private string? currentUserId;
+    private bool sending;
+    private bool isConnected = true; // mantém envio via REST mesmo sem hub
+    private bool isReconnecting;
+    private bool hubClosed; // true após esgotar retries automáticos
+    private bool isDisposing;
+    private HubConnection? hubConnection;
+    private IJSObjectReference? chatModule;
+    private AuthenticationStateChangedHandler? authChangedHandler;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthState.GetAuthenticationStateAsync();
+        currentUserId = authState.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+        // Falha em qualquer chamada não pode quebrar a renderização da página inteira.
+        try
+        {
+            var convMessages = await Api.GetMessagesAsync(Id);
+            if (convMessages is not null)
+                messages = convMessages.ToList();
+        }
+        catch { /* mantém messages vazio; handler global já toasta */ }
+
+        try
+        {
+            var conversations = await Api.GetConversationsAsync();
+            conversation = conversations?.FirstOrDefault(c => c.Id == Id);
+        }
+        catch { /* idem */ }
+
+        try { await Api.MarkAsReadAsync(Id); } catch { /* não bloqueia o chat */ }
+
+        await ReconnectHubAsync();
+
+        // Reconecta o hub quando o JWT é renovado (handler do refresh dispara AuthenticationStateChanged).
+        authChangedHandler = task => { _ = InvokeAsync(ReconnectHubAsync); };
+        AuthState.AuthenticationStateChanged += authChangedHandler;
+    }
+
+    /// <summary>
+    /// Fecha conexão anterior (se houver) e abre nova com o token corrente.
+    /// Garante que após login/refresh do JWT a websocket carregue o token válido.
+    /// </summary>
+    private async Task ReconnectHubAsync()
+    {
+        if (hubConnection is not null)
+        {
+            try { await hubConnection.InvokeAsync("LeaveConversation", Id); } catch { }
+            try { await hubConnection.DisposeAsync(); } catch { }
+            hubConnection = null;
+        }
+
+        var token = await AuthState.GetTokenAsync();
+        if (string.IsNullOrEmpty(token)) return;
+
+        var apiBase = (Configuration["ApiBaseUrl"] ?? "https://localhost:5000").TrimEnd('/');
+        hubConnection = new HubConnectionBuilder()
+            .WithUrl($"{apiBase}/hubs/chat", options =>
+            {
+                options.AccessTokenProvider = async () => await AuthState.GetTokenAsync();
+            })
+            .WithAutomaticReconnect()
+            .Build();
+
+        hubConnection.On<MessageDto>("ReceiveMessage", msg =>
+        {
+            messages.Add(msg);
+            InvokeAsync(async () =>
+            {
+                StateHasChanged();
+                await ScrollToBottom();
+            });
+        });
+
+        hubConnection.Reconnecting += error =>
+        {
+            isReconnecting = true;
+            hubClosed = false;
+            return InvokeAsync(StateHasChanged);
+        };
+        hubConnection.Reconnected += connectionId =>
+        {
+            isReconnecting = false;
+            hubClosed = false;
+            // Re-junta o grupo da conversa — Group memberships são por conexão e somem no reconnect.
+            // Captura local protege contra DisposeAsync rodar entre o snapshot e o invoke.
+            var hub = hubConnection;
+            _ = Task.Run(async () =>
+            {
+                if (hub is null || isDisposing) return;
+                try { await hub.InvokeAsync("JoinConversation", Id); } catch { }
+            });
+            return InvokeAsync(StateHasChanged);
+        };
+        hubConnection.Closed += error =>
+        {
+            isReconnecting = false;
+            // Dispose intencional setou isDisposing antes; nesse caso não é "perda permanente".
+            hubClosed = !isDisposing;
+            return InvokeAsync(StateHasChanged);
+        };
+
+        try
+        {
+            await hubConnection.StartAsync();
+            await hubConnection.InvokeAsync("JoinConversation", Id);
+        }
+        catch
+        {
+            // Mantém isConnected=true (REST funciona); usuário simplesmente não vê tempo real.
+        }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            chatModule = await JS.InvokeAsync<IJSObjectReference>("import", "./js/chat.js");
+            await ScrollToBottom();
+        }
+    }
+
+    private async Task HandleKey(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter" && !string.IsNullOrWhiteSpace(newMessage))
+            await SendMessage();
+    }
+
+    private async Task SendMessage()
+    {
+        if (sending || string.IsNullOrWhiteSpace(newMessage)) return;
+        sending = true;
+
+        var request = new SendMessageRequest
+        {
+            ConversationId = Id,
+            Content = newMessage
+        };
+
+        try
+        {
+            var sent = await Api.SendMessageAsync(request);
+            if (sent is null)
+            {
+                // Handler global já toasta o erro; preserva o conteúdo para o usuário tentar de novo.
+                return;
+            }
+            if (sent.WasRedacted)
+            {
+                Toast.ShowWarning("Sua mensagem teve contatos removidos. Compartilhe telefone, e-mail ou links apenas após a contratação.");
+            }
+            newMessage = "";
+        }
+        finally
+        {
+            sending = false;
+        }
+    }
+
+    private async Task ScrollToBottom()
+    {
+        if (chatModule is null) return;
+        await Task.Delay(50);
+        try { await chatModule.InvokeVoidAsync("scrollToBottom", "chat-messages"); }
+        catch (JSDisconnectedException) { }
+        catch (TaskCanceledException) { }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        isDisposing = true;
+
+        if (authChangedHandler is not null)
+        {
+            AuthState.AuthenticationStateChanged -= authChangedHandler;
+            authChangedHandler = null;
+        }
+
+        if (hubConnection is not null)
+        {
+            try { await hubConnection.InvokeAsync("LeaveConversation", Id); } catch { }
+            try { await hubConnection.DisposeAsync(); } catch { }
+            hubConnection = null;
+        }
+
+        if (chatModule is not null)
+        {
+            try { await chatModule.DisposeAsync(); }
+            catch (JSDisconnectedException) { }
+        }
+    }
+}

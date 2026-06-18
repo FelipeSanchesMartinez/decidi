@@ -1,0 +1,56 @@
+@inject ToastService Toast
+@implements IDisposable
+
+@if (Toast.Toasts.Any())
+{
+    <div class="toast-container">
+        @foreach (var toast in Toast.Toasts)
+        {
+            <div class="toast toast-@toast.Level.ToString().ToLower()"
+                 role="@RoleFor(toast.Level)"
+                 aria-live="@AriaLiveFor(toast.Level)"
+                 aria-atomic="true">
+                <div class="toast-header">
+                    <span class="toast-icon" aria-hidden="true">@GetIcon(toast.Level)</span>
+                    <strong>@toast.Title</strong>
+                    <button class="toast-close" type="button"
+                            aria-label="Fechar notificação"
+                            @onclick="() => Toast.Remove(toast)">&times;</button>
+                </div>
+                <div class="toast-body">@toast.Message</div>
+            </div>
+        }
+    </div>
+}
+
+@code {
+    protected override void OnInitialized()
+    {
+        Toast.OnChange += StateHasChanged;
+    }
+
+    private static string GetIcon(ToastLevel level) => level switch
+    {
+        ToastLevel.Success => "✓",
+        ToastLevel.Warning => "!",
+        ToastLevel.Error => "✗",
+        _ => "i"
+    };
+
+    private static string RoleFor(ToastLevel level) => level switch
+    {
+        ToastLevel.Error or ToastLevel.Warning => "alert",
+        _ => "status"
+    };
+
+    private static string AriaLiveFor(ToastLevel level) => level switch
+    {
+        ToastLevel.Error or ToastLevel.Warning => "assertive",
+        _ => "polite"
+    };
+
+    public void Dispose()
+    {
+        Toast.OnChange -= StateHasChanged;
+    }
+}

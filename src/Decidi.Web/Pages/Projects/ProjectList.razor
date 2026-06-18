@@ -1,0 +1,303 @@
+@page "/projects"
+@inject ApiClient Api
+@inject AppState State
+@inject NavigationManager Navigation
+
+<PageTitle>Projetos - decidi</PageTitle>
+<HeadContent>
+    <meta name="description" content="Explore projetos abertos para propostas no Brasil. Desenvolvimento, design, marketing, redação e mais. Encontre o projeto certo para você." />
+    <link rel="canonical" href="https://decidi.com.br/projects" />
+</HeadContent>
+
+<div class="container">
+    <div class="page-with-sidebar">
+        <div class="sidebar">
+            <div class="sidebar-section">
+                <h3>Categorias</h3>
+                <a href="javascript:void(0)" class="sidebar-link @(selectedCategoryId is null ? "active" : "")" @onclick="ClearCategory">Todas</a>
+                @if (categories is not null)
+                {
+                    @foreach (var cat in categories)
+                    {
+                        <a class="sidebar-link @(selectedCategoryId == cat.Id ? "active" : "")"
+                           @onclick="() => FilterByCategory(cat.Id)"
+                           href="javascript:void(0)">@cat.Name</a>
+                    }
+                }
+            </div>
+
+            <div class="sidebar-section">
+                <h3>Orçamento</h3>
+                <div style="display:flex;gap:0.5rem;align-items:center">
+                    <input type="number" class="form-control form-control-sm" placeholder="Min"
+                           @bind="filterBudgetMin" @bind:event="oninput" style="width:50%"
+                           inputmode="decimal" min="0" />
+                    <span style="color:var(--gray-400)">—</span>
+                    <input type="number" class="form-control form-control-sm" placeholder="Max"
+                           @bind="filterBudgetMax" @bind:event="oninput" style="width:50%"
+                           inputmode="decimal" min="0" />
+                </div>
+                <button class="btn btn-outline btn-sm w-full" style="margin-top:0.5rem" @onclick="ApplyFilters">Aplicar</button>
+            </div>
+
+            <div class="sidebar-section">
+                <h3>Tipo</h3>
+                <a href="javascript:void(0)" class="sidebar-link @(filterBudgetType is null ? "active" : "")"
+                   @onclick="() => SetBudgetType(null)">Todos</a>
+                <a href="javascript:void(0)" class="sidebar-link @(filterBudgetType == ProjectBudgetType.Fixed ? "active" : "")"
+                   @onclick="() => SetBudgetType(ProjectBudgetType.Fixed)">Preço Fixo</a>
+                <a href="javascript:void(0)" class="sidebar-link @(filterBudgetType == ProjectBudgetType.Hourly ? "active" : "")"
+                   @onclick="() => SetBudgetType(ProjectBudgetType.Hourly)">Por Hora</a>
+            </div>
+
+            <div class="sidebar-section">
+                <h3>Ordenar por</h3>
+                <select class="form-control form-control-sm" @bind="sortBy" @bind:after="ApplyFilters">
+                    <option value="">Mais recentes</option>
+                    <option value="budget_desc">Maior orçamento</option>
+                    <option value="budget_asc">Menor orçamento</option>
+                    <option value="proposals">Mais propostas</option>
+                </select>
+            </div>
+
+            @if (HasActiveFilters)
+            {
+                <button class="btn btn-ghost btn-sm w-full" style="margin-top:0.5rem" @onclick="ClearAllFilters">
+                    Limpar filtros
+                </button>
+            }
+        </div>
+
+        <div class="page-content">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.5rem;flex-wrap:wrap;gap:1rem">
+                <h1 style="font-size:1.75rem;margin:0">
+                    Projetos
+                    @if (result is not null)
+                    {
+                        <span class="badge badge-gray" style="font-size:0.85rem;margin-left:0.5rem">@result.TotalCount</span>
+                    }
+                </h1>
+                <div class="search-bar" style="margin:0">
+                    <input type="search" class="form-control" placeholder="Buscar projetos..."
+                           @bind="search" @bind:event="oninput" @onkeyup="HandleSearchKey"
+                           autocomplete="off" autocapitalize="off" autocorrect="off"
+                           spellcheck="false" enterkeyhint="search" />
+                    <button class="btn btn-primary" @onclick="ApplyFilters">Buscar</button>
+                </div>
+            </div>
+
+            @if (loading)
+            {
+                <div class="premium-project-grid">
+                    <SkeletonCard Count="6" Lines="4" />
+                </div>
+            }
+            else if (result is not null)
+            {
+                @if (!result.Items.Any())
+                {
+                    <EmptyState Title="Nenhum projeto encontrado"
+                                Message="@(HasActiveFilters ? "Tente ajustar os filtros para ver mais resultados." : "Que tal publicar o primeiro projeto?")">
+                        <CallToAction>
+                            @if (HasActiveFilters)
+                            {
+                                <button class="btn btn-outline" @onclick="ClearAllFilters">Limpar filtros</button>
+                            }
+                            else
+                            {
+                                <a href="/projects/create" class="btn btn-primary">Publicar projeto</a>
+                            }
+                        </CallToAction>
+                    </EmptyState>
+                }
+                else
+                {
+                    <div class="premium-project-grid">
+                        @foreach (var project in result.Items)
+                        {
+                            <div class="premium-project-card" @onclick="() => GoToProject(project.Id)">
+                                <div class="ppc-header">
+                                    <div class="ppc-category">
+                                        <span class="badge badge-primary">@project.CategoryName</span>
+                                        <StatusBadge Project="@project.Status" />
+                                    </div>
+                                    <div class="ppc-budget">
+                                        @if (project.BudgetMin.HasValue || project.BudgetMax.HasValue)
+                                        {
+                                            <text>R$ @(project.BudgetMin?.ToString("N0") ?? "?") - R$ @(project.BudgetMax?.ToString("N0") ?? "?")</text>
+                                            <span class="ppc-budget-type">@(project.BudgetType == ProjectBudgetType.Hourly ? "/ hora" : "Fixo")</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="ppc-budget-type">Receba propostas</span>
+                                        }
+                                    </div>
+                                </div>
+
+                                <h3 class="ppc-title">@project.Title</h3>
+                                <p class="ppc-description">@project.DescriptionPreview</p>
+
+                                <div class="ppc-skills">
+                                    @foreach (var skill in project.RequiredSkills.Take(6))
+                                    {
+                                        <span class="ppc-skill">@skill</span>
+                                    }
+                                    @if (project.RequiredSkills.Count > 6)
+                                    {
+                                        <span class="ppc-skill ppc-skill-more">+@(project.RequiredSkills.Count - 6)</span>
+                                    }
+                                </div>
+
+                                <div class="ppc-footer">
+                                    <div class="ppc-footer-left">
+                                        <Avatar Name="@project.ClientName" Size="xs" />
+                                        <span class="ppc-client">@project.ClientName</span>
+                                    </div>
+                                    <div class="ppc-footer-right">
+                                        <span class="ppc-proposals">
+                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                                            @project.ProposalCount
+                                        </span>
+                                        @if (project.Deadline.HasValue)
+                                        {
+                                            <span class="ppc-deadline">
+                                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                                                @project.Deadline.Value.ToString("dd/MM")
+                                            </span>
+                                        }
+                                        <span class="ppc-date">@GetTimeAgo(project.CreatedAt)</span>
+                                    </div>
+                                </div>
+                            </div>
+                        }
+                    </div>
+
+                    @if (result.TotalPages > 1)
+                    {
+                        <div class="pagination">
+                            <button disabled="@(currentPage <= 1)" @onclick="() => GoToPage(currentPage - 1)">
+                                &larr; Anterior
+                            </button>
+                            @for (int i = 1; i <= result.TotalPages; i++)
+                            {
+                                var pageNum = i;
+                                <button class="@(pageNum == currentPage ? "active" : "")" @onclick="() => GoToPage(pageNum)">@pageNum</button>
+                            }
+                            <button disabled="@(currentPage >= result.TotalPages)" @onclick="() => GoToPage(currentPage + 1)">
+                                Próximo &rarr;
+                            </button>
+                        </div>
+                    }
+                }
+            }
+        </div>
+    </div>
+</div>
+
+@code {
+    [SupplyParameterFromQuery] public string? search { get; set; }
+    [SupplyParameterFromQuery] public Guid? categoryId { get; set; }
+
+    private IEnumerable<CategoryDto>? categories;
+    private PagedResult<ProjectListDto>? result;
+    private Guid? selectedCategoryId;
+    private int currentPage = 1;
+    private bool loading = true;
+
+    private decimal? filterBudgetMin;
+    private decimal? filterBudgetMax;
+    private ProjectBudgetType? filterBudgetType;
+    private string sortBy = "";
+
+    private bool HasActiveFilters => filterBudgetMin.HasValue || filterBudgetMax.HasValue
+        || filterBudgetType.HasValue || !string.IsNullOrEmpty(sortBy)
+        || selectedCategoryId.HasValue || !string.IsNullOrWhiteSpace(search);
+
+    protected override async Task OnInitializedAsync()
+    {
+        selectedCategoryId = categoryId;
+        var categoriesTask = State.GetCategoriesAsync();
+        await LoadProjects();
+        categories = await categoriesTask;
+    }
+
+    private async Task LoadProjects()
+    {
+        loading = true;
+        result = await Api.SearchProjectsAsync(
+            search, selectedCategoryId,
+            budgetMin: filterBudgetMin, budgetMax: filterBudgetMax,
+            budgetType: filterBudgetType,
+            sortBy: string.IsNullOrEmpty(sortBy) ? null : sortBy,
+            page: currentPage);
+        loading = false;
+    }
+
+    private async Task ApplyFilters()
+    {
+        currentPage = 1;
+        await LoadProjects();
+    }
+
+    private async Task FilterByCategory(Guid catId)
+    {
+        selectedCategoryId = selectedCategoryId == catId ? null : catId;
+        currentPage = 1;
+        await LoadProjects();
+    }
+
+    private async Task ClearCategory()
+    {
+        selectedCategoryId = null;
+        currentPage = 1;
+        await LoadProjects();
+    }
+
+    private async Task SetBudgetType(ProjectBudgetType? type)
+    {
+        filterBudgetType = type;
+        currentPage = 1;
+        await LoadProjects();
+    }
+
+    private async Task ClearAllFilters()
+    {
+        search = null;
+        selectedCategoryId = null;
+        filterBudgetMin = null;
+        filterBudgetMax = null;
+        filterBudgetType = null;
+        sortBy = "";
+        currentPage = 1;
+        await LoadProjects();
+    }
+
+    private async Task GoToPage(int page)
+    {
+        currentPage = page;
+        await LoadProjects();
+    }
+
+    private void GoToProject(Guid id)
+    {
+        Navigation.NavigateTo($"/projects/{id}");
+    }
+
+    private async Task HandleSearchKey(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter")
+        {
+            currentPage = 1;
+            await LoadProjects();
+        }
+    }
+
+    private static string GetTimeAgo(DateTime date)
+    {
+        var diff = DateTime.UtcNow - date;
+        if (diff.TotalMinutes < 60) return $"{(int)diff.TotalMinutes}min";
+        if (diff.TotalHours < 24) return $"{(int)diff.TotalHours}h";
+        if (diff.TotalDays < 30) return $"{(int)diff.TotalDays}d";
+        return date.ToString("dd/MM");
+    }
+}

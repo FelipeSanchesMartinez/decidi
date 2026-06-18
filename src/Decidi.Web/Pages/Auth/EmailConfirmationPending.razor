@@ -1,0 +1,87 @@
+@page "/email-confirmation-pending"
+@implements IDisposable
+@inject ApiClient Api
+
+<PageTitle>Confirme seu e-mail - decidi</PageTitle>
+
+<div class="auth-container">
+    <div class="card" style="padding:2.5rem;text-align:center">
+        <div style="font-size:3rem;margin-bottom:1rem">&#9993;</div>
+        <h1>Verifique seu e-mail</h1>
+        <p class="text-muted" style="margin:1rem 0;line-height:1.7;max-width:400px;margin-left:auto;margin-right:auto">
+            Enviamos um link de confirmação para o seu e-mail.
+            Clique no link para ativar sua conta e começar a usar a decidi.
+        </p>
+        <p class="text-sm text-muted" style="margin-bottom:1.5rem">
+            Não recebeu? Verifique a pasta de spam ou lixo eletrônico.
+        </p>
+
+        <div style="display:flex;flex-direction:column;align-items:center;gap:0.75rem">
+            <a href="/login" class="btn btn-outline">Já confirmei, ir para Login</a>
+
+            @if (!string.IsNullOrEmpty(Email))
+            {
+                <button class="btn btn-link" style="font-size:0.9rem" @onclick="ResendEmail" disabled="@resending">
+                    @if (resending)
+                    {
+                        <span>Enviando...</span>
+                    }
+                    else if (resent)
+                    {
+                        <span style="color:var(--success)">E-mail reenviado!</span>
+                    }
+                    else
+                    {
+                        <span>Reenviar e-mail de confirmação</span>
+                    }
+                </button>
+
+                @if (cooldown > 0)
+                {
+                    <span class="text-sm text-muted">Aguarde @cooldown s para reenviar</span>
+                }
+            }
+        </div>
+    </div>
+</div>
+
+@code {
+    [SupplyParameterFromQuery] public string? Email { get; set; }
+
+    private bool resending;
+    private bool resent;
+    private int cooldown;
+    private System.Timers.Timer? timer;
+
+    private async Task ResendEmail()
+    {
+        if (resending || cooldown > 0 || string.IsNullOrEmpty(Email)) return;
+
+        resending = true;
+        await Api.ResendConfirmationAsync(Uri.UnescapeDataString(Email));
+        resending = false;
+        resent = true;
+
+        cooldown = 60;
+        timer = new System.Timers.Timer(1000);
+        timer.Elapsed += (_, _) =>
+        {
+            cooldown--;
+            if (cooldown <= 0)
+            {
+                timer.Stop();
+                timer.Dispose();
+                timer = null;
+                resent = false;
+            }
+            InvokeAsync(StateHasChanged);
+        };
+        timer.Start();
+    }
+
+    public void Dispose()
+    {
+        timer?.Stop();
+        timer?.Dispose();
+    }
+}

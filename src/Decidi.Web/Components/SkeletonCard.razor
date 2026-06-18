@@ -1,0 +1,30 @@
+@* Placeholder de carga em formato de card. Lines = número de barras shimmer.
+   Use Count para repetir o card N vezes (útil em listas/grids). *@
+
+@for (var i = 0; i < Count; i++)
+{
+    <div class="skeleton-card @CssClass" aria-hidden="true">
+        @if (ShowMedia)
+        {
+            <div class="skeleton-media"></div>
+        }
+        @for (var line = 0; line < Lines; line++)
+        {
+            <div class="skeleton-line" style="width:@WidthFor(line)"></div>
+        }
+    </div>
+}
+
+@code {
+    [Parameter] public int Lines { get; set; } = 3;
+    [Parameter] public int Count { get; set; } = 1;
+    [Parameter] public bool ShowMedia { get; set; }
+    [Parameter] public string? CssClass { get; set; }
+
+    private static string WidthFor(int index) => index switch
+    {
+        0 => "70%",
+        1 => "92%",
+        _ => "60%"
+    };
+}

@@ -1,0 +1,378 @@
+@inherits LayoutComponentBase
+@implements IAsyncDisposable
+@inject NavigationManager Navigation
+@inject JwtAuthStateProvider AuthState
+@inject ApiClient Api
+@inject AppState State
+@inject ToastService Toast
+@inject IJSRuntime JS
+@inject IConfiguration Configuration
+@using Microsoft.AspNetCore.SignalR.Client
+
+<GlobalLoading />
+<ToastContainer />
+
+<AuthorizeView>
+    <Authorized>
+        @if (!emailConfirmed)
+        {
+            <div class="email-confirm-banner">
+                <div class="container" style="display:flex;flex-wrap:wrap;align-items:center;gap:0.75rem">
+                    <span style="font-size:1.1rem">✉️</span>
+                    <span style="flex:1;min-width:200px">
+                        Confirme seu e-mail para liberar publicar projetos, enviar propostas e contratar.
+                    </span>
+                    <button class="btn btn-outline btn-sm" @onclick="ResendConfirmation" disabled="@resendingEmail">
+                        @(resendingEmail ? "Enviando..." : "Reenviar e-mail")
+                    </button>
+                </div>
+            </div>
+        }
+    </Authorized>
+</AuthorizeView>
+
+<div class="layout">
+    <nav class="navbar">
+        <div class="container navbar-content">
+            <a href="/" class="navbar-brand">decidi</a>
+            <div class="navbar-links">
+                <a href="/projects">Projetos</a>
+                <AuthorizeView>
+                    <Authorized>
+                        <AuthorizeView Roles="Client" Context="clientCtx">
+                            <Authorized>
+                                <a href="/projects/create">Publicar Projeto</a>
+                                <a href="/projects/my">Meus Projetos</a>
+                            </Authorized>
+                        </AuthorizeView>
+                        <AuthorizeView Roles="Freelancer" Context="freelancerCtx">
+                            <Authorized>
+                                <a href="/proposals/my">Minhas Propostas</a>
+                            </Authorized>
+                        </AuthorizeView>
+                        <a href="/chat">Mensagens</a>
+                        <div class="nav-bell" @onclick="ToggleNotifications" @onclick:stopPropagation="true">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+                            @if (State.UnreadNotificationCount > 0)
+                            {
+                                <span class="nav-bell-badge">@(State.UnreadNotificationCount > 9 ? "9+" : State.UnreadNotificationCount.ToString())</span>
+                            }
+                            @if (showNotifications)
+                            {
+                                <div class="notif-dropdown" @onclick:stopPropagation="true">
+                                    <div class="notif-dropdown-header">
+                                        <strong>Notificações</strong>
+                                        @if (State.UnreadNotificationCount > 0)
+                                        {
+                                            <button class="btn-link" @onclick="MarkAllRead">Marcar todas como lidas</button>
+                                        }
+                                    </div>
+                                    @if (notifications is null || !notifications.Any())
+                                    {
+                                        <div class="notif-empty">Nenhuma notificação</div>
+                                    }
+                                    else
+                                    {
+                                        @foreach (var n in notifications.Take(8))
+                                        {
+                                            <div class="notif-item @(!n.IsRead ? "unread" : "")" @onclick="() => GoToNotification(n)">
+                                                <div class="notif-icon">@GetNotifIcon(n.Type)</div>
+                                                <div class="notif-content">
+                                                    <div class="notif-title">@n.Title</div>
+                                                    <div class="notif-msg">@n.Message</div>
+                                                    <div class="notif-time">@FormatTime(n.CreatedAt)</div>
+                                                </div>
+                                            </div>
+                                        }
+                                    }
+                                </div>
+                            }
+                        </div>
+                        <a href="/profile">Perfil</a>
+                        <button class="btn btn-outline" @onclick="Logout">Sair</button>
+                    </Authorized>
+                    <NotAuthorized>
+                        <a href="/login" class="btn btn-secondary">Entrar</a>
+                        <a href="/register" class="btn btn-primary">Cadastrar</a>
+                    </NotAuthorized>
+                </AuthorizeView>
+            </div>
+
+            <button class="navbar-toggle" @onclick="ToggleMobile">
+                <span></span><span></span><span></span>
+            </button>
+        </div>
+
+        @if (showMobileMenu)
+        {
+            <div class="navbar-mobile">
+                <a href="/projects" @onclick="CloseMobile">Projetos</a>
+                <AuthorizeView Context="mobileCtx">
+                    <Authorized>
+                        <AuthorizeView Roles="Client" Context="mobileClientCtx">
+                            <Authorized>
+                                <a href="/projects/create" @onclick="CloseMobile">Publicar Projeto</a>
+                                <a href="/projects/my" @onclick="CloseMobile">Meus Projetos</a>
+                            </Authorized>
+                        </AuthorizeView>
+                        <AuthorizeView Roles="Freelancer" Context="mobileFreelancerCtx">
+                            <Authorized>
+                                <a href="/proposals/my" @onclick="CloseMobile">Minhas Propostas</a>
+                            </Authorized>
+                        </AuthorizeView>
+                        <a href="/chat" @onclick="CloseMobile">Mensagens</a>
+                        <a href="/profile" @onclick="CloseMobile">Perfil</a>
+                        <button class="btn btn-outline w-full" @onclick="Logout">Sair</button>
+                    </Authorized>
+                    <NotAuthorized>
+                        <a href="/login" class="btn btn-secondary w-full" @onclick="CloseMobile">Entrar</a>
+                        <a href="/register" class="btn btn-primary w-full" @onclick="CloseMobile">Cadastrar</a>
+                    </NotAuthorized>
+                </AuthorizeView>
+            </div>
+        }
+    </nav>
+
+    <main class="main-content">
+        @Body
+    </main>
+
+    <MobileBottomNav />
+
+    <footer class="footer">
+        <div class="container">
+            <div class="footer-grid">
+                <div class="footer-brand">
+                    <span class="footer-logo">decidi</span>
+                    <p>A plataforma freelancer com as menores taxas do Brasil. Zero mensalidade, mesma oportunidade a todos.</p>
+                </div>
+                <div class="footer-links">
+                    <h4>Plataforma</h4>
+                    <a href="/projects">Explorar Projetos</a>
+                    <a href="/register">Criar Conta</a>
+                    <a href="/login">Entrar</a>
+                </div>
+                <div class="footer-links">
+                    <h4>Para Clientes</h4>
+                    <a href="/projects/create">Publicar Projeto</a>
+                    <a href="/projects">Encontrar Freelancers</a>
+                </div>
+                <div class="footer-links">
+                    <h4>Para Freelancers</h4>
+                    <a href="/projects">Buscar Projetos</a>
+                    <a href="/register">Começar Agora</a>
+                </div>
+                <div class="footer-links">
+                    <h4>Legal</h4>
+                    <a href="/termos">Termos de Uso</a>
+                    <a href="/privacidade">Política de Privacidade</a>
+                    <a href="/lgpd">LGPD</a>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <p>&copy; 2026 decidi — Conectando talento ao projeto certo.</p>
+                <p class="footer-contact">Contato: contato@decidi.com.br · Encarregado LGPD: dpo@decidi.com.br</p>
+            </div>
+        </div>
+    </footer>
+</div>
+
+@code {
+    private bool showMobileMenu;
+    private bool showNotifications;
+    private bool emailConfirmed = true;
+    private bool resendingEmail;
+    private string? userEmail;
+    private IEnumerable<NotificationDto>? notifications;
+
+    private AuthenticationStateChangedHandler? authChangedHandler;
+    private HubConnection? notifHub;
+    private readonly SemaphoreSlim hubLock = new(1, 1);
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            State.OnChange += OnStateChanged;
+            await State.InitializeAsync();
+            await RefreshEmailConfirmedFlag();
+            await ReconnectNotificationHubAsync();
+            authChangedHandler = task =>
+            {
+                _ = InvokeAsync(async () =>
+                {
+                    // Ordem importa: re-inicializa o AppState ANTES de checar IsAuthenticated,
+                    // depois reconecta o hub com o token novo (cobre login, logout e refresh).
+                    await State.InitializeAsync();
+                    await RefreshEmailConfirmedFlag();
+                    await ReconnectNotificationHubAsync();
+                    StateHasChanged();
+                });
+            };
+            AuthState.AuthenticationStateChanged += authChangedHandler;
+        }
+    }
+
+    /// <summary>
+    /// (Re)conecta o hub de notificações. Sempre fecha a conexão anterior antes de subir uma nova,
+    /// garantindo que o token usado na handshake seja o atual do localStorage.
+    /// Em login: cria do zero. Em logout: só fecha. Em refresh do JWT: fecha e reconecta com token novo.
+    /// </summary>
+    private async Task ReconnectNotificationHubAsync()
+    {
+        // Serializa para que login + refresh em rajada não criem 2 conexões concorrentes
+        // (uma sendo construída enquanto a outra é disposed deixaria o estado inconsistente).
+        await hubLock.WaitAsync();
+        try
+        {
+            if (notifHub is not null)
+            {
+                try { await notifHub.DisposeAsync(); } catch { }
+                notifHub = null;
+            }
+
+            if (!State.IsAuthenticated) return;
+
+            var apiBase = (Configuration["ApiBaseUrl"] ?? "https://localhost:5000").TrimEnd('/');
+            notifHub = new HubConnectionBuilder()
+                .WithUrl($"{apiBase}/hubs/notifications", options =>
+                {
+                    // Provider dinâmico: cada handshake (incluindo reconexões automáticas)
+                    // pega o token mais recente diretamente do AuthState.
+                    options.AccessTokenProvider = async () => await AuthState.GetTokenAsync();
+                })
+                .WithAutomaticReconnect()
+                .Build();
+
+            notifHub.On<NotificationDto>("ReceiveNotification", n =>
+            {
+                InvokeAsync(() =>
+                {
+                    State.IncrementUnreadCount();
+                    if (notifications is not null)
+                    {
+                        notifications = new[] { n }.Concat(notifications).ToList();
+                    }
+                    Toast.ShowInfo(n.Title);
+                    StateHasChanged();
+                });
+            });
+
+            try { await notifHub.StartAsync(); }
+            catch { /* sem realtime; contagem só atualiza ao recarregar */ }
+        }
+        finally
+        {
+            hubLock.Release();
+        }
+    }
+
+    private async Task RefreshEmailConfirmedFlag()
+    {
+        var auth = await AuthState.GetAuthenticationStateAsync();
+        if (auth.User.Identity?.IsAuthenticated != true)
+        {
+            emailConfirmed = true;
+            userEmail = null;
+            return;
+        }
+        var claim = auth.User.FindFirst("email_confirmed")?.Value;
+        emailConfirmed = claim == "true";
+        userEmail = auth.User.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value;
+    }
+
+    private async Task ResendConfirmation()
+    {
+        if (string.IsNullOrEmpty(userEmail)) return;
+        resendingEmail = true;
+        try
+        {
+            await Api.ResendConfirmationAsync(userEmail);
+            Toast.ShowSuccess("E-mail de confirmação reenviado. Verifique sua caixa de entrada.");
+        }
+        catch
+        {
+            Toast.ShowError("Não foi possível reenviar agora. Tente novamente em alguns minutos.");
+        }
+        resendingEmail = false;
+    }
+
+    private void OnStateChanged() => InvokeAsync(StateHasChanged);
+
+    private async Task ToggleNotifications()
+    {
+        showNotifications = !showNotifications;
+        if (showNotifications && notifications is null)
+        {
+            try { notifications = await Api.GetNotificationsAsync(); } catch { }
+        }
+    }
+
+    private async Task MarkAllRead()
+    {
+        try
+        {
+            await Api.MarkAllNotificationsAsReadAsync();
+            State.SetUnreadCount(0);
+            if (notifications is not null)
+                foreach (var n in notifications) n.IsRead = true;
+        }
+        catch { }
+    }
+
+    private async Task GoToNotification(NotificationDto n)
+    {
+        if (!n.IsRead)
+        {
+            try { await Api.MarkNotificationAsReadAsync(n.Id); } catch { }
+            n.IsRead = true;
+            State.DecrementUnreadCount();
+        }
+        showNotifications = false;
+        if (!string.IsNullOrEmpty(n.Link))
+            Navigation.NavigateTo(n.Link);
+    }
+
+    private static string GetNotifIcon(string type) => type switch
+    {
+        "proposal_received" => "\U0001F4E9",
+        "proposal_accepted" => "✅",
+        "proposal_rejected" => "❌",
+        "chat_message" => "\U0001F4AC",
+        _ => "\U0001F514"
+    };
+
+    private static string FormatTime(DateTime dt)
+    {
+        var local = dt.ToLocalTime();
+        var diff = DateTime.Now - local;
+        if (diff.TotalMinutes < 1) return "agora";
+        if (diff.TotalMinutes < 60) return $"{(int)diff.TotalMinutes}min";
+        if (diff.TotalHours < 24) return $"{(int)diff.TotalHours}h";
+        if (diff.TotalDays < 7) return $"{(int)diff.TotalDays}d";
+        return local.ToString("dd/MM");
+    }
+
+    private async Task Logout()
+    {
+        try { await Api.LogoutAsync(); } catch { }
+        await AuthState.MarkUserAsLoggedOut();
+        showMobileMenu = false;
+        Navigation.NavigateTo("/", forceLoad: true);
+    }
+
+    private void ToggleMobile() => showMobileMenu = !showMobileMenu;
+    private void CloseMobile() => showMobileMenu = false;
+
+    public async ValueTask DisposeAsync()
+    {
+        State.OnChange -= OnStateChanged;
+        if (authChangedHandler is not null)
+            AuthState.AuthenticationStateChanged -= authChangedHandler;
+        if (notifHub is not null)
+        {
+            try { await notifHub.DisposeAsync(); } catch { }
+            notifHub = null;
+        }
+    }
+}

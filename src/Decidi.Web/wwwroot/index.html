@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <!-- SEO -->
+    <title>decidi - Encontre Freelancers e Publique Projetos</title>
+    <meta name="description" content="Contrate freelancers pagando apenas R$3,99 por contratação. Freelancers pagam 12% + R$2,99 por transação. Zero mensalidade. Só paga se usar." />
+    <meta name="keywords" content="freelancer, projetos, contratação, marketplace, desenvolvimento, design, marketing, redação, consultoria" />
+    <meta name="author" content="decidi" />
+    <meta name="robots" content="index, follow" />
+    <!-- canonical é declarado por página via <HeadContent>, não aqui (Blazor WASM serve este index.html para TODAS as rotas) -->
+
+    <!-- Open Graph -->
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="decidi - O jeito simples de contratar freelancers" />
+    <meta property="og:description" content="Publique seu projeto grátis e receba propostas de profissionais qualificados. Taxa de apenas R$3,99 ao contratar. Sem mensalidade." />
+    <meta property="og:site_name" content="decidi" />
+    <meta property="og:locale" content="pt_BR" />
+    <meta property="og:url" content="https://decidi.com.br/" />
+    <meta property="og:image" content="https://decidi.com.br/og-image.png" />
+    <meta property="og:image:type" content="image/png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="decidi - marketplace de freelancers" />
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="decidi - Encontre Freelancers e Publique Projetos" />
+    <meta name="twitter:description" content="Plataforma para contratar freelancers qualificados. Publique, compare e decida." />
+    <meta name="twitter:image" content="https://decidi.com.br/og-image.png" />
+
+    <!-- Structured data (JSON-LD) -->
+    <script type="application/ld+json">
+    {
+        "@context": "https://schema.org",
+        "@type": "Organization",
+        "name": "decidi",
+        "url": "https://decidi.com.br",
+        "logo": "https://decidi.com.br/icon-192.png",
+        "description": "Marketplace para contratar freelancers no Brasil com as menores taxas.",
+        "sameAs": []
+    }
+    </script>
+    <script type="application/ld+json">
+    {
+        "@context": "https://schema.org",
+        "@type": "WebSite",
+        "name": "decidi",
+        "url": "https://decidi.com.br",
+        "potentialAction": {
+            "@type": "SearchAction",
+            "target": "https://decidi.com.br/projects?search={search_term}",
+            "query-input": "required name=search_term"
+        }
+    }
+    </script>
+
+    <!-- Theme -->
+    <meta name="theme-color" content="#0B6B4F" />
+    <meta name="msapplication-TileColor" content="#0B6B4F" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="decidi" />
+    <link rel="manifest" href="manifest.json" />
+    <link rel="apple-touch-icon" href="icon-192.png" />
+
+    <base href="/" />
+    <link rel="preload" id="webassembly" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="stylesheet" href="css/app.css" />
+    <script type="importmap"></script>
+
+    <style>
+        .app-loading {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            gap: 1.5rem;
+            font-family: 'Inter', -apple-system, sans-serif;
+            background: #FFFFFF;
+        }
+        .app-loading-logo {
+            font-family: 'Nunito Sans', sans-serif;
+            font-size: 2.5rem;
+            font-weight: 800;
+            background: linear-gradient(90deg, #0B6B4F 0%, #18A7A3 45%, #1E56F2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .app-loading-bar {
+            width: 200px;
+            height: 3px;
+            background: #E5E7EB;
+            border-radius: 3px;
+            overflow: hidden;
+        }
+        .app-loading-bar::after {
+            content: '';
+            display: block;
+            width: 40%;
+            height: 100%;
+            background: linear-gradient(90deg, #0B6B4F 0%, #18A7A3 45%, #1E56F2 100%);
+            border-radius: 3px;
+            animation: app-load 1.5s ease-in-out infinite;
+        }
+        @keyframes app-load {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(350%); }
+        }
+        .app-loading-text {
+            font-size: 0.875rem;
+            color: #6B7280;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="app">
+        <div class="app-loading">
+            <div class="app-loading-logo">decidi</div>
+            <div class="app-loading-bar"></div>
+            <div class="app-loading-text">Carregando...</div>
+        </div>
+    </div>
+
+    <div id="blazor-error-ui">
+        Ocorreu um erro inesperado.
+        <a href="." class="reload">Recarregar</a>
+        <span class="dismiss">&#x2715;</span>
+    </div>
+    <script src="_framework/blazor.webassembly#[.{fingerprint}].js"></script>
+    <script>
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('service-worker.js');
+        }
+    </script>
+</body>
+
+</html>

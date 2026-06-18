@@ -1,0 +1,21 @@
+@inject LoadingService Loading
+@implements IDisposable
+
+@if (Loading.IsLoading)
+{
+    <div class="global-loading">
+        <div class="loading-bar"></div>
+    </div>
+}
+
+@code {
+    protected override void OnInitialized()
+    {
+        Loading.OnChange += StateHasChanged;
+    }
+
+    public void Dispose()
+    {
+        Loading.OnChange -= StateHasChanged;
+    }
+}

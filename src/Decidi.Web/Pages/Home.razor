@@ -1,0 +1,492 @@
+@page "/"
+@implements IDisposable
+@inject ApiClient Api
+@inject NavigationManager Navigation
+@inject AppState State
+
+<PageTitle>decidi — A plataforma freelancer com as menores taxas do Brasil</PageTitle>
+<HeadContent>
+    <link rel="canonical" href="https://decidi.com.br/" />
+    <meta property="og:url" content="https://decidi.com.br/" />
+</HeadContent>
+
+@if (State.IsAuthenticated)
+{
+    @* ===== AUTHENTICATED DASHBOARD com KPIs (Sprint 6.1 / 6.2) ===== *@
+    <div class="container" style="padding:2rem 1.5rem">
+        <div class="dashboard-welcome">
+            <h1 style="font-size:1.75rem;margin-bottom:0.25rem">
+                Olá, <span class="gradient-text">@State.UserName</span>!
+            </h1>
+            <p class="text-muted">@GetWelcomeMessage()</p>
+        </div>
+
+        @if (State.IsFreelancer)
+        {
+            <div class="kpi-grid">
+                <a class="kpi-card" href="/proposals/my">
+                    <span class="kpi-label">Ganhos no mês</span>
+                    <span class="kpi-value">R$ @((freelancerStats?.EarningsThisMonth ?? 0).ToString("N2"))</span>
+                    <span class="kpi-hint">recebidos (líquido)</span>
+                </a>
+                <a class="kpi-card" href="/proposals/my">
+                    <span class="kpi-label">Propostas em aberto</span>
+                    <span class="kpi-value">@(freelancerStats?.PendingProposals ?? 0)</span>
+                    <span class="kpi-hint">aguardando resposta</span>
+                </a>
+                <a class="kpi-card" href="/projects/my">
+                    <span class="kpi-label">Contratos ativos</span>
+                    <span class="kpi-value">@(freelancerStats?.ActiveContracts ?? 0)</span>
+                    <span class="kpi-hint">em execução agora</span>
+                </a>
+                <a class="kpi-card" href="@($"/freelancer/{State.UserId}")">
+                    <span class="kpi-label">Avaliação média</span>
+                    <span class="kpi-value">@((freelancerStats?.AverageRating ?? 0).ToString("0.0"))</span>
+                    <span class="kpi-hint">@(freelancerStats?.TotalReviews ?? 0) avaliações</span>
+                </a>
+                <a class="kpi-card" href="/proposals/my">
+                    <span class="kpi-label">Taxa de aceite</span>
+                    <span class="kpi-value">@(((freelancerStats?.AcceptanceRate ?? 0) * 100).ToString("0"))%</span>
+                    <span class="kpi-hint">propostas aceitas</span>
+                </a>
+            </div>
+            <div class="dashboard-quicklinks">
+                <a class="btn btn-primary" href="/projects">🔍 Explorar projetos</a>
+                <a class="btn btn-outline" href="/proposals/my">Minhas propostas</a>
+            </div>
+        }
+        else
+        {
+            <div class="kpi-grid">
+                <a class="kpi-card" href="/projects/my">
+                    <span class="kpi-label">Projetos ativos</span>
+                    <span class="kpi-value">@(clientStats?.ActiveProjects ?? 0)</span>
+                    <span class="kpi-hint">em andamento</span>
+                </a>
+                <a class="kpi-card highlight" href="/projects/my">
+                    <span class="kpi-label">Propostas a revisar</span>
+                    <span class="kpi-value">@(clientStats?.ProposalsToReview ?? 0)</span>
+                    <span class="kpi-hint">aguardando sua decisão</span>
+                </a>
+                <a class="kpi-card" href="/chat">
+                    <span class="kpi-label">Conversas</span>
+                    <span class="kpi-value">@(clientStats?.Conversations ?? 0)</span>
+                    <span class="kpi-hint">canais de chat ativos</span>
+                </a>
+                <div class="kpi-card">
+                    <span class="kpi-label">Gasto na plataforma</span>
+                    <span class="kpi-value">R$ @((clientStats?.TotalSpentApprox ?? 0).ToString("N0"))</span>
+                    <span class="kpi-hint">somatório de contratações</span>
+                </div>
+            </div>
+            <div class="dashboard-quicklinks">
+                <a class="btn btn-primary" href="/projects/create">＋ Publicar projeto</a>
+                <a class="btn btn-outline" href="/projects">Explorar profissionais</a>
+            </div>
+        }
+    </div>
+}
+else
+{
+    @* ===================================================================
+       LANDING PAGE — Conversion-focused design
+       =================================================================== *@
+
+    @* ── HERO ────────────────────────────────────────────────────────── *@
+    <section class="lp-hero">
+        <div class="container">
+            <div class="lp-hero-content">
+                <h1>
+                    Conecte talento ao<br />
+                    <span class="gradient-text">projeto certo</span>
+                </h1>
+                <p class="lp-hero-sub">
+                    A plataforma freelancer com as menores taxas do Brasil.
+                    Zero mensalidade. Publique, compare e decida.
+                </p>
+                <form class="lp-hero-form" @onsubmit="GoToHeroRegister" @onsubmit:preventDefault="true">
+                    <label class="visually-hidden" for="hero-hint">Descreva sua necessidade</label>
+                    <input id="hero-hint" type="search" autocomplete="off"
+                        autocapitalize="sentences" autocorrect="on" enterkeyhint="go"
+                        placeholder="Descreva o que precisa: ex. site para minha loja"
+                        @bind="heroHint" @bind:event="oninput" maxlength="200" />
+                    <button type="submit" class="btn btn-primary btn-xl">Publicar projeto</button>
+                </form>
+
+                <div class="lp-hero-actions">
+                    <a href="/register?role=freelancer" class="btn btn-ghost btn-xl">Sou profissional, quero propostas</a>
+                </div>
+                <p class="lp-hero-actions-note">
+                    Cliente: publica grátis, paga R$3,99 só ao contratar. ·
+                    Profissional: envie propostas, taxa de 12% + R$2,99 só quando receber.
+                </p>
+
+                <div class="lp-hero-stats">
+                    <div class="lp-hero-stat">
+                        <div class="num">@FormatNumber(stats?.TotalProjects ?? 0)</div>
+                        <div class="lbl">Projetos publicados</div>
+                    </div>
+                    <div class="lp-hero-stat">
+                        <div class="num">@FormatNumber(stats?.ActiveFreelancers ?? 0)</div>
+                        <div class="lbl">Freelancers cadastrados</div>
+                    </div>
+                    <div class="lp-hero-stat">
+                        <div class="num">@FormatNumber(stats?.CompletedProjects ?? 0)</div>
+                        <div class="lbl">Projetos concluídos</div>
+                    </div>
+                    <div class="lp-hero-stat">
+                        <div class="num">@categoryCount+</div>
+                        <div class="lbl">Categorias</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    @* ── TRUST BAR ───────────────────────────────────────────────────── *@
+    <section class="lp-trust">
+        <div class="container">
+            <div class="lp-trust-inner">
+                <div class="lp-trust-item">
+                    <div class="lp-trust-icon">&#128274;</div>
+                    <span>Pagamento seguro por etapas</span>
+                </div>
+                <div class="lp-trust-item">
+                    <div class="lp-trust-icon">&#9889;</div>
+                    <span>Propostas em minutos</span>
+                </div>
+                <div class="lp-trust-item">
+                    <div class="lp-trust-icon">&#128172;</div>
+                    <span>Chat em tempo real</span>
+                </div>
+                <div class="lp-trust-item">
+                    <div class="lp-trust-icon">&#9878;</div>
+                    <span>Mesma oportunidade a todos</span>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    @* ── COMO FUNCIONA ───────────────────────────────────────────────── *@
+    <section class="lp-section">
+        <div class="container">
+            <div class="lp-section-head">
+                <div class="lp-section-badge">Simples e rápido</div>
+                <h2>Como funciona</h2>
+                <p>Em três passos você já está conectado ao profissional ideal</p>
+            </div>
+            <div class="lp-steps">
+                <div class="lp-step">
+                    <div class="lp-step-num">1</div>
+                    <h3>Publique seu projeto</h3>
+                    <p>Descreva o que precisa, defina o orçamento e escolha a categoria. É rápido, simples e totalmente gratuito.</p>
+                </div>
+                <div class="lp-step">
+                    <div class="lp-step-num">2</div>
+                    <h3>Receba propostas</h3>
+                    <p>Freelancers qualificados enviam propostas com valor, prazo e abordagem detalhada. Compare com calma.</p>
+                </div>
+                <div class="lp-step">
+                    <div class="lp-step-num">3</div>
+                    <h3>Escolha e decida</h3>
+                    <p>Aceite a melhor proposta, converse pelo chat em tempo real e acompanhe cada etapa do projeto.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    @* ── PRICING ─────────────────────────────────────────────────────── *@
+    <section class="lp-section alt">
+        <div class="container">
+            <div class="lp-section-head">
+                <div class="lp-section-badge">Transparência total</div>
+                <h2>Taxas que cabem no bolso</h2>
+                <p>Sem surpresas. Sem mensalidade. Você só paga quando usa a plataforma.</p>
+            </div>
+            <div class="lp-pricing-grid">
+                @* Client pricing card *@
+                <div class="lp-price-card">
+                    <div class="lp-price-icon">&#128188;</div>
+                    <h3>Para Clientes</h3>
+                    <div class="lp-price-role">Quem publica projetos</div>
+                    <div class="lp-price-val">R$3,99 <span>/ contratação</span></div>
+                    <div class="lp-price-desc">Publique grátis. Pague apenas R$3,99 ao encontrar e contratar o profissional ideal.</div>
+                    <ul class="lp-price-list">
+                        <li><span class="lp-price-check">&#10003;</span> Publicação gratuita e ilimitada</li>
+                        <li><span class="lp-price-check">&#10003;</span> Receba propostas de freelancers</li>
+                        <li><span class="lp-price-check">&#10003;</span> Chat em tempo real</li>
+                        <li><span class="lp-price-check">&#10003;</span> Pagamento por milestones</li>
+                        <li><span class="lp-price-check">&#10003;</span> Avaliações e reviews</li>
+                        <li><span class="lp-price-check">&#10003;</span> Zero mensalidade</li>
+                    </ul>
+                    <a href="/register" class="btn btn-primary w-full">Comece Agora</a>
+                </div>
+
+                @* Freelancer pricing card *@
+                <div class="lp-price-card featured">
+                    <div class="lp-price-icon">&#128187;</div>
+                    <h3>Para Freelancers</h3>
+                    <div class="lp-price-role">Quem envia propostas</div>
+                    <div class="lp-price-val">12% <span>+ R$2,99</span></div>
+                    <div class="lp-price-desc">Percentual sobre o valor recebido + taxa fixa por transação.</div>
+                    <ul class="lp-price-list">
+                        <li><span class="lp-price-check">&#10003;</span> Acesso a todos os projetos</li>
+                        <li><span class="lp-price-check">&#10003;</span> Envie propostas ilimitadas</li>
+                        <li><span class="lp-price-check">&#10003;</span> Perfil profissional completo</li>
+                        <li><span class="lp-price-check">&#10003;</span> Avaliações de clientes</li>
+                        <li><span class="lp-price-check">&#10003;</span> Portfólio integrado</li>
+                        <li><span class="lp-price-check">&#10003;</span> Só paga se receber</li>
+                    </ul>
+                    <a href="/register" class="btn btn-white w-full">Cadastre-se Grátis</a>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    @* ── DIFERENCIAIS ─────────────────────────────────────────────────── *@
+    <section class="lp-section">
+        <div class="container">
+            <div class="lp-section-head">
+                <div class="lp-section-badge">Nossos diferenciais</div>
+                <h2>Por que a decidi?</h2>
+                <p>Criamos uma plataforma justa, acessível e feita para quem trabalha de verdade</p>
+            </div>
+            <div class="lp-features">
+                <div class="lp-feature">
+                    <div class="lp-feature-icon">&#128176;</div>
+                    <h4>Zero mensalidade</h4>
+                    <p>Sem planos, sem assinaturas. Você só paga quando efetivamente usa a plataforma para fechar negócio.</p>
+                </div>
+                <div class="lp-feature">
+                    <div class="lp-feature-icon">&#9878;</div>
+                    <h4>Mesma oportunidade a todos</h4>
+                    <p>Não vendemos destaque. Todo freelancer tem a mesma visibilidade. Quem se destaca é quem entrega qualidade.</p>
+                </div>
+                <div class="lp-feature">
+                    <div class="lp-feature-icon">&#128200;</div>
+                    <h4>As menores taxas</h4>
+                    <p>Clientes pagam apenas R$3,99 ao contratar um profissional. Freelancers pagam 12% + R$2,99 por transação. Simples assim.</p>
+                </div>
+                <div class="lp-feature">
+                    <div class="lp-feature-icon">&#128274;</div>
+                    <h4>Pagamento por etapas</h4>
+                    <p>Divida o projeto em milestones. O pagamento só é liberado quando o cliente aprova cada entrega.</p>
+                </div>
+                <div class="lp-feature">
+                    <div class="lp-feature-icon">&#128172;</div>
+                    <h4>Chat em tempo real</h4>
+                    <p>Comunique-se diretamente com seu cliente ou freelancer. Sem intermediários, sem complicação.</p>
+                </div>
+                <div class="lp-feature">
+                    <div class="lp-feature-icon">&#11088;</div>
+                    <h4>Avaliações reais</h4>
+                    <p>Sistema de reviews transparente. Escolha freelancers com base na experiência real de outros clientes.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    @* ── DEPOIMENTOS ────────────────────────────────────────────────── *@
+    <section class="lp-section">
+        <div class="container">
+            <div class="lp-section-head">
+                <div class="lp-section-badge">Quem usa</div>
+                <h2>Histórias de quem confia na decidi</h2>
+                <p>Profissionais e clientes que escolheram a plataforma para crescer</p>
+            </div>
+            <div class="lp-testimonials">
+                <figure class="lp-testimonial">
+                    <blockquote>
+                        Publiquei meu projeto na sexta e segunda já tinha 6 propostas detalhadas.
+                        Comparei lado a lado e contratei em 10 minutos — uma fração do tempo dos concorrentes.
+                    </blockquote>
+                    <figcaption>
+                        <span class="t-avatar">M</span>
+                        <span class="t-info">
+                            <strong>Marina Silva</strong>
+                            <span>Founder · @@marinasilva.tech</span>
+                        </span>
+                    </figcaption>
+                </figure>
+                <figure class="lp-testimonial">
+                    <blockquote>
+                        Já trabalhei em outras plataformas. A decidi cobra muito menos e libera o pagamento por etapas.
+                        Sem dor de cabeça, sem destaques pagos. Só talento.
+                    </blockquote>
+                    <figcaption>
+                        <span class="t-avatar">R</span>
+                        <span class="t-info">
+                            <strong>Rafael Costa</strong>
+                            <span>Freelancer · Desenvolvimento Web</span>
+                        </span>
+                    </figcaption>
+                </figure>
+                <figure class="lp-testimonial">
+                    <blockquote>
+                        O chat antifraude impede a saída da plataforma — o que me deu segurança total.
+                        Pagamento garantido e relacionamento transparente. Já contratei 4 projetos.
+                    </blockquote>
+                    <figcaption>
+                        <span class="t-avatar">J</span>
+                        <span class="t-info">
+                            <strong>Juliana Pereira</strong>
+                            <span>Diretora de Marketing</span>
+                        </span>
+                    </figcaption>
+                </figure>
+            </div>
+            <p class="lp-testimonials-note">
+                Depoimentos com nomes fictícios durante a fase de beta. Substituídos por reais após a abertura pública.
+            </p>
+        </div>
+    </section>
+
+    @* ── CATEGORIAS ──────────────────────────────────────────────────── *@
+    @if (categories is not null && categories.Any())
+    {
+        <section class="lp-section alt">
+            <div class="container">
+                <div class="lp-section-head">
+                    <div class="lp-section-badge">Explore</div>
+                    <h2>Categorias de projetos</h2>
+                    <p>Encontre profissionais especializados na área que você precisa</p>
+                </div>
+                <div class="grid grid-3">
+                    @foreach (var cat in categories)
+                    {
+                        <a class="category-card" href="@($"/projects?categoryId={cat.Id}")">
+                            <h3>@cat.Name</h3>
+                            <p>@cat.Description</p>
+                            <span class="arrow">&#8594;</span>
+                        </a>
+                    }
+                </div>
+            </div>
+        </section>
+    }
+
+    @* ── PARA FREELANCERS ─────────────────────────────────────────────── *@
+    <section class="lp-section">
+        <div class="container">
+            <div class="lp-section-head">
+                <div class="lp-section-badge">Para profissionais</div>
+                <h2>Freelancer, aqui é o seu lugar</h2>
+                <p>Chega de pagar caro para trabalhar. Na decidi, quem manda é o seu talento.</p>
+            </div>
+            <div class="lp-steps">
+                <div class="lp-step">
+                    <div class="lp-step-num">&#128640;</div>
+                    <h3>Cadastro gratuito</h3>
+                    <p>Crie sua conta, monte seu perfil profissional e comece a enviar propostas agora mesmo. Sem custo inicial.</p>
+                </div>
+                <div class="lp-step">
+                    <div class="lp-step-num">&#127919;</div>
+                    <h3>Projetos de verdade</h3>
+                    <p>Acesse projetos reais publicados por clientes que precisam da sua expertise. Sem leilões, sem corrida pelo menor preço.</p>
+                </div>
+                <div class="lp-step">
+                    <div class="lp-step-num">&#128181;</div>
+                    <h3>Receba com segurança</h3>
+                    <p>Pagamento garantido por milestones. Só descontamos 12% + R$2,99 quando você efetivamente recebe. Zero mensalidade.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    @* ── CTA FINAL ───────────────────────────────────────────────────── *@
+    <section class="lp-cta">
+        <div class="container">
+            <h2>Pronto para <span class="gradient-text">decidir</span>?</h2>
+            <p>
+                Cadastre-se gratuitamente e comece a conectar talento ao projeto certo.
+                Sem mensalidade. Sem surpresas.
+            </p>
+            <div class="lp-cta-actions">
+                <a href="/register" class="btn btn-primary btn-xl">Criar Conta Grátis</a>
+                <a href="/login" class="btn btn-ghost btn-xl">Já tenho conta</a>
+            </div>
+        </div>
+    </section>
+}
+
+@code {
+    private IEnumerable<CategoryDto>? categories;
+    private PublicStatsDto? stats;
+    private ClientStatsDto? clientStats;
+    private FreelancerStatsDto? freelancerStats;
+    private int categoryCount;
+    private int projectCount;
+    private string heroHint = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        State.OnChange += OnStateChanged;
+
+        if (!State.IsAuthenticated)
+            await State.InitializeAsync();
+
+        if (State.IsAuthenticated)
+        {
+            if (State.IsFreelancer && !State.IsProfileComplete)
+            {
+                Navigation.NavigateTo("/onboarding");
+                return;
+            }
+
+            // KPIs do dashboard — falha de um endpoint não derruba a tela.
+            try
+            {
+                if (State.IsFreelancer)
+                    freelancerStats = await Api.GetFreelancerStatsAsync();
+                else if (State.IsClient)
+                    clientStats = await Api.GetClientStatsAsync();
+            }
+            catch { /* opcional — handler global já mostra toast */ }
+        }
+        else
+        {
+            // Landing: 3 chamadas independentes em paralelo.
+            var categoriesTask = State.GetCategoriesAsync();
+            var projectsTask = SafeAsync(() => Api.SearchProjectsAsync(pageSize: 6));
+            var statsTask = SafeAsync(() => Api.GetPublicStatsAsync());
+
+            await Task.WhenAll(categoriesTask, projectsTask, statsTask);
+
+            categories = categoriesTask.Result;
+            var result = projectsTask.Result;
+            stats = statsTask.Result;
+
+            categoryCount = categories?.Count() ?? 0;
+            projectCount = result?.TotalCount ?? 0;
+        }
+    }
+
+    /// <summary>Encapsula uma chamada async de forma que falhas não interrompam o Task.WhenAll.</summary>
+    private static async Task<T?> SafeAsync<T>(Func<Task<T?>> call)
+    {
+        try { return await call(); }
+        catch { return default; }
+    }
+
+    private void OnStateChanged() => InvokeAsync(StateHasChanged);
+
+    private string GetWelcomeMessage() => State.IsFreelancer
+        ? "Encontre projetos que combinam com suas habilidades."
+        : "Publique projetos e encontre os melhores profissionais.";
+
+    private void GoToHeroRegister()
+    {
+        var hint = heroHint?.Trim() ?? string.Empty;
+        var qs = string.IsNullOrEmpty(hint) ? string.Empty : $"&hint={Uri.EscapeDataString(hint)}";
+        Navigation.NavigateTo($"/register?role=client{qs}");
+    }
+
+    private static string FormatNumber(int n) => n switch
+    {
+        >= 1_000_000 => $"{n / 1_000_000d:0.#}M",
+        >= 1_000 => $"{n / 1_000d:0.#}k",
+        _ => n.ToString()
+    };
+
+    public void Dispose() => State.OnChange -= OnStateChanged;
+}

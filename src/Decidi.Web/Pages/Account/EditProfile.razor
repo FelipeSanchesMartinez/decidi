@@ -1,0 +1,324 @@
+@page "/profile/edit"
+@attribute [Authorize]
+@inject ApiClient Api
+@inject NavigationManager Navigation
+@inject IConfiguration Configuration
+@using Decidi.Web.Components
+@using Microsoft.AspNetCore.Components.Forms
+
+<PageTitle>Editar Perfil - decidi</PageTitle>
+
+<div class="container" style="max-width:780px;margin:0 auto;padding:2rem 1.5rem">
+    <div style="margin-bottom:2rem">
+        <h1 style="font-size:1.75rem;margin-bottom:0.25rem">Editar Perfil</h1>
+        <p class="text-muted">Mantenha seu perfil atualizado para atrair mais oportunidades.</p>
+    </div>
+
+    @if (!string.IsNullOrEmpty(errorMessage))
+    {
+        <div class="alert alert-danger">@errorMessage</div>
+    }
+
+    @if (!string.IsNullOrEmpty(successMessage))
+    {
+        <div class="alert alert-success">@successMessage</div>
+    }
+
+    @if (loading)
+    {
+        <div class="page-loading">
+            <div class="page-loading-spinner">
+                <div class="spinner-ring"></div>
+                <div class="spinner-ring"></div>
+                <div class="spinner-ring"></div>
+            </div>
+            <span class="page-loading-text">Carregando perfil...</span>
+        </div>
+    }
+    else
+    {
+        @if (isFreelancer && !IsProfileComplete())
+        {
+            <div class="profile-alert" style="margin-bottom:1.5rem">
+                <div class="profile-alert-icon">!</div>
+                <div class="profile-alert-content">
+                    <strong>Perfil incompleto</strong>
+                    <p>
+                        Preencha os campos obrigatórios para enviar propostas:
+                        @{ var missing = GetMissingFields(); }
+                        <strong>@string.Join(", ", missing)</strong>.
+                    </p>
+                </div>
+            </div>
+        }
+
+        <div class="card" style="padding:2rem">
+            <EditForm Model="model" OnValidSubmit="HandleSubmit" FormName="editprofile">
+                <DataAnnotationsValidator />
+
+                <div class="form-group avatar-edit-row">
+                    <div class="avatar-edit-preview">
+                        @if (!string.IsNullOrEmpty(model.AvatarUrl))
+                        {
+                            <img src="@ResolveAvatarUrl(model.AvatarUrl)" alt="Avatar" />
+                        }
+                        else
+                        {
+                            <div class="avatar-edit-placeholder">@(string.IsNullOrEmpty(model.FullName) ? "?" : model.FullName[..1].ToUpper())</div>
+                        }
+                    </div>
+                    <div style="flex:1">
+                        <label>Foto de perfil</label>
+                        <InputFile OnChange="OnAvatarSelected" accept="image/jpeg,image/png,image/webp" />
+                        <span class="form-hint">JPG, PNG ou WebP. Até 2 MB. Quadrada fica melhor.</span>
+                        @if (uploadingAvatar)
+                        {
+                            <p class="form-hint">Enviando...</p>
+                        }
+                        @if (!string.IsNullOrEmpty(avatarError))
+                        {
+                            <p class="form-hint" style="color:var(--error)">@avatarError</p>
+                        }
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Nome completo <span style="color:var(--error)">*</span></label>
+                    <InputText class="form-control" @bind-Value="model.FullName" placeholder="Seu nome completo"
+                        autocomplete="name" autocapitalize="words" autocorrect="off" />
+                    <ValidationMessage For="@(() => model.FullName)" />
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group" style="flex:1">
+                        <label>Telefone (opcional)</label>
+                        <InputText class="form-control" @bind-Value="model.PhoneNumber" placeholder="(11) 91234-5678"
+                            type="tel" inputmode="tel" autocomplete="tel-national" autocorrect="off" />
+                        <ValidationMessage For="@(() => model.PhoneNumber)" />
+                    </div>
+                    <div class="form-group" style="flex:1">
+                        <label>Cidade (opcional)</label>
+                        <InputText class="form-control" @bind-Value="model.City" placeholder="Ex: São Paulo, SP"
+                            autocomplete="address-level2" autocapitalize="words" autocorrect="off" />
+                        <ValidationMessage For="@(() => model.City)" />
+                    </div>
+                </div>
+
+                @if (isFreelancer)
+                {
+                    <div class="form-group">
+                        <label>Título Profissional <span style="color:var(--error)">*</span></label>
+                        <InputText class="form-control" @bind-Value="model.Title" maxlength="200"
+                            placeholder="Ex: Desenvolvedor Full Stack .NET | Designer UI/UX | Marketing Digital"
+                            autocapitalize="words" autocorrect="on" />
+                        <ValidationMessage For="@(() => model.Title)" />
+                        <span class="form-hint">Este é o título que aparece no seu perfil público. Seja claro e objetivo.</span>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Sobre mim <span style="color:var(--error)">*</span></label>
+                        <InputTextArea class="form-control" @bind-Value="model.Bio" rows="5"
+                            maxlength="@UpdateProfileRequest.BioMaxLength"
+                            placeholder="Conte sobre sua experiência profissional, especializações, projetos que já realizou e o que te diferencia..."
+                            autocapitalize="sentences" autocorrect="on" />
+                        <ValidationMessage For="@(() => model.Bio)" />
+                        <CharCounter Value="@model.Bio"
+                                     Min="UpdateProfileRequest.BioMinLength"
+                                     Max="UpdateProfileRequest.BioMaxLength"
+                                     Hint="@BioHint" />
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group" style="flex:1">
+                            <label>Valor por Hora (R$)</label>
+                            <InputNumber class="form-control" @bind-Value="model.HourlyRate" placeholder="0"
+                                inputmode="decimal" />
+                            <span class="form-hint">Opcional. Ajuda clientes a terem uma noção do seu valor.</span>
+                        </div>
+                        <div class="form-group" style="flex:1">
+                            <label>URL do Portfólio</label>
+                            <InputText class="form-control" @bind-Value="model.PortfolioUrl"
+                                placeholder="https://meuportfolio.com"
+                                type="url" inputmode="url" autocomplete="url"
+                                autocapitalize="off" autocorrect="off" spellcheck="false" />
+                            <span class="form-hint">Link para seu portfólio, GitHub, Behance, etc.</span>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Habilidades <span style="color:var(--error)">*</span></label>
+                        <p class="text-muted text-sm mb-1">
+                            Selecione pelo menos uma habilidade que representa sua experiência.
+                        </p>
+                        <SkillTagInput @bind-SelectedSkills="selectedSkills" />
+                        @if (selectedSkills.Count == 0)
+                        {
+                            <span class="form-hint" style="color:var(--error)">Selecione pelo menos 1 habilidade para completar seu perfil.</span>
+                        }
+                    </div>
+                }
+
+                <div style="display:flex;gap:0.75rem;margin-top:1.5rem">
+                    <SubmitButton IsSubmitting="@submitting" BusyText="Salvando...">
+                        Salvar Alterações
+                    </SubmitButton>
+                    <a href="/profile" class="btn btn-outline">Cancelar</a>
+                </div>
+            </EditForm>
+        </div>
+    }
+</div>
+
+@code {
+    private UpdateProfileRequest model = new();
+    private List<string> selectedSkills = [];
+    private bool loading = true;
+    private bool submitting;
+    private bool isFreelancer;
+    private bool uploadingAvatar;
+    private string? errorMessage;
+    private string? successMessage;
+    private string? avatarError;
+
+    private string BioHint
+    {
+        get
+        {
+            var len = model.Bio?.Length ?? 0;
+            if (len == 0) return "Mínimo de 80 caracteres. Bios bem escritas convertem mais.";
+            if (len < UpdateProfileRequest.BioMinLength)
+                return $"Faltam {UpdateProfileRequest.BioMinLength - len} caracteres para o mínimo.";
+            return "Boa! Resuma quem você é, especialidades e diferenciais.";
+        }
+    }
+
+    private string ApiBase => (Configuration["ApiBaseUrl"] ?? "https://localhost:5000").TrimEnd('/');
+
+    private string ResolveAvatarUrl(string? url)
+    {
+        if (string.IsNullOrEmpty(url)) return string.Empty;
+        if (url.StartsWith("http", StringComparison.OrdinalIgnoreCase)) return url;
+        return $"{ApiBase}{(url.StartsWith('/') ? url : "/" + url)}";
+    }
+
+    private async Task OnAvatarSelected(InputFileChangeEventArgs e)
+    {
+        avatarError = null;
+        var file = e.File;
+        if (file is null) return;
+
+        if (file.Size > 2 * 1024 * 1024)
+        {
+            avatarError = "Arquivo muito grande. Máximo 2 MB.";
+            return;
+        }
+
+        uploadingAvatar = true;
+        try
+        {
+            using var stream = file.OpenReadStream(2 * 1024 * 1024);
+            var url = await Api.UploadAvatarAsync(stream, file.Name, file.ContentType);
+            if (!string.IsNullOrEmpty(url))
+            {
+                model.AvatarUrl = url;
+            }
+            else
+            {
+                avatarError = "Não foi possível enviar a foto. Tente outro arquivo.";
+            }
+        }
+        catch
+        {
+            avatarError = "Erro ao enviar a foto.";
+        }
+        uploadingAvatar = false;
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var profile = await Api.GetProfileAsync();
+            if (profile is not null)
+            {
+                model.FullName = profile.FullName;
+                model.AvatarUrl = profile.AvatarUrl;
+                model.PhoneNumber = profile.PhoneNumber;
+                model.City = profile.City;
+                model.Title = profile.Title;
+                model.Bio = profile.Bio;
+                model.HourlyRate = profile.HourlyRate;
+                model.PortfolioUrl = profile.PortfolioUrl;
+                isFreelancer = profile.Role == UserRole.Freelancer;
+                selectedSkills = profile.Skills.ToList();
+            }
+        }
+        catch
+        {
+            errorMessage = "Erro ao carregar perfil. Tente novamente.";
+        }
+        loading = false;
+    }
+
+    private async Task HandleSubmit()
+    {
+        submitting = true;
+        errorMessage = null;
+        successMessage = null;
+
+        model.Skills = selectedSkills;
+
+        // Strings opcionais: "" não é o mesmo que "não informado".
+        // Sem isso, o backend pode rejeitar Bio="" via [StringLength(MinLength=80)].
+        model.Title = NullIfBlank(model.Title);
+        model.Bio = NullIfBlank(model.Bio);
+        model.PhoneNumber = NullIfBlank(model.PhoneNumber);
+        model.City = NullIfBlank(model.City);
+        model.PortfolioUrl = NullIfBlank(model.PortfolioUrl);
+
+        // Fix: ensure Title is not still "Novo Freelancer"
+        if (isFreelancer && string.Equals(model.Title?.Trim(), "Novo Freelancer", StringComparison.OrdinalIgnoreCase))
+        {
+            errorMessage = "Por favor, altere o título profissional — 'Novo Freelancer' não é válido.";
+            submitting = false;
+            return;
+        }
+
+        var result = await Api.UpdateProfileAsync(model);
+        if (result is not null)
+        {
+            successMessage = "Perfil atualizado com sucesso!";
+            // Small delay so user sees the success message
+            await Task.Delay(800);
+            Navigation.NavigateTo("/profile");
+        }
+        else
+        {
+            errorMessage = "Erro ao atualizar perfil. Verifique os dados e tente novamente.";
+        }
+        submitting = false;
+    }
+
+    private bool IsProfileComplete()
+    {
+        return !string.IsNullOrWhiteSpace(model.Title)
+            && !string.Equals(model.Title?.Trim(), "Novo Freelancer", StringComparison.OrdinalIgnoreCase)
+            && !string.IsNullOrWhiteSpace(model.Bio)
+            && selectedSkills.Count > 0;
+    }
+
+    private static string? NullIfBlank(string? value)
+        => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+
+    private List<string> GetMissingFields()
+    {
+        var missing = new List<string>();
+        if (string.IsNullOrWhiteSpace(model.Title) || string.Equals(model.Title?.Trim(), "Novo Freelancer", StringComparison.OrdinalIgnoreCase))
+            missing.Add("Título profissional");
+        if (string.IsNullOrWhiteSpace(model.Bio))
+            missing.Add("Sobre mim (bio)");
+        if (selectedSkills.Count == 0)
+            missing.Add("Habilidades");
+        return missing;
+    }
+}

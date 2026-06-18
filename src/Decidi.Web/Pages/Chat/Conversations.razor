@@ -1,0 +1,131 @@
+@page "/chat"
+@attribute [Authorize]
+@inject ApiClient Api
+@inject NavigationManager Navigation
+
+<PageTitle>Mensagens - decidi</PageTitle>
+
+<div class="container" style="max-width:700px;margin:0 auto">
+    <div class="messenger-container">
+        <div class="messenger-header">
+            <h1>Mensagens</h1>
+        </div>
+
+        @if (loading)
+        {
+            <SkeletonCard Count="4" Lines="2" />
+        }
+        else if (grouped is null || !grouped.Any())
+        {
+            <EmptyState Title="Nenhuma conversa ainda"
+                        Message="Envie uma proposta para iniciar uma conversa com um cliente.">
+                <Icon>
+                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--gray-300)" stroke-width="1.5">
+                        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+                    </svg>
+                </Icon>
+            </EmptyState>
+        }
+        else
+        {
+            <div class="messenger-list">
+                @foreach (var person in grouped)
+                {
+                    <div class="messenger-item" @onclick="() => GoToChat(person.ConversationId)">
+                        <Avatar Name="@person.Name" Url="@person.AvatarUrl" Size="lg" />
+                        <div class="messenger-info">
+                            <div class="messenger-name">@person.Name</div>
+                            <div class="messenger-last-msg">
+                                @if (!string.IsNullOrEmpty(person.LastMessage))
+                                {
+                                    @person.LastMessage
+                                }
+                                else
+                                {
+                                    <span>Nenhuma mensagem</span>
+                                }
+                            </div>
+                            @if (!string.IsNullOrEmpty(person.ProjectTitle))
+                            {
+                                <div class="messenger-project-tag">@person.ProjectTitle</div>
+                            }
+                        </div>
+                        <div class="messenger-meta">
+                            @if (person.LastMessageAt.HasValue)
+                            {
+                                <span class="messenger-time">@FormatTime(person.LastMessageAt.Value)</span>
+                            }
+                            @if (person.UnreadCount > 0)
+                            {
+                                <span class="messenger-unread">@person.UnreadCount</span>
+                            }
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+    </div>
+</div>
+
+@code {
+    private IEnumerable<ConversationDto>? conversations;
+    private List<GroupedConversation>? grouped;
+    private bool loading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        conversations = await Api.GetConversationsAsync();
+        if (conversations is not null)
+        {
+            // Group by person (OtherUserId), pick the most recent conversation for each
+            grouped = conversations
+                .GroupBy(c => c.OtherUserId)
+                .Select(g =>
+                {
+                    var latest = g.OrderByDescending(c => c.LastMessageAt).First();
+                    return new GroupedConversation
+                    {
+                        ConversationId = latest.Id,
+                        Name = latest.OtherUserName,
+                        AvatarUrl = latest.OtherUserAvatarUrl,
+                        Initial = string.IsNullOrEmpty(latest.OtherUserName) ? "?" : latest.OtherUserName[..1].ToUpper(),
+                        LastMessage = latest.LastMessage,
+                        LastMessageAt = latest.LastMessageAt,
+                        ProjectTitle = latest.ProjectTitle,
+                        UnreadCount = g.Sum(c => c.UnreadCount)
+                    };
+                })
+                .OrderByDescending(g => g.LastMessageAt)
+                .ToList();
+        }
+        loading = false;
+    }
+
+    private void GoToChat(Guid conversationId)
+    {
+        Navigation.NavigateTo($"/chat/{conversationId}");
+    }
+
+    private static string FormatTime(DateTime dt)
+    {
+        var local = dt.ToLocalTime();
+        var diff = DateTime.Now - local;
+        if (diff.TotalMinutes < 1) return "agora";
+        if (diff.TotalMinutes < 60) return $"{(int)diff.TotalMinutes} min";
+        if (diff.TotalHours < 24) return local.ToString("HH:mm");
+        if (diff.TotalDays < 7) return $"{(int)diff.TotalDays}d";
+        return local.ToString("dd/MM");
+    }
+
+    private class GroupedConversation
+    {
+        public Guid ConversationId { get; set; }
+        public string Name { get; set; } = "";
+        public string? AvatarUrl { get; set; }
+        public string Initial { get; set; } = "?";
+        public string? LastMessage { get; set; }
+        public DateTime? LastMessageAt { get; set; }
+        public string ProjectTitle { get; set; } = "";
+        public int UnreadCount { get; set; }
+    }
+}

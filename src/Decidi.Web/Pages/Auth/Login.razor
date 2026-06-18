@@ -1,0 +1,92 @@
+@page "/login"
+@inject ApiClient Api
+@inject JwtAuthStateProvider AuthState
+@inject NavigationManager Navigation
+
+<PageTitle>Entrar - decidi</PageTitle>
+<HeadContent>
+    <link rel="canonical" href="https://decidi.com.br/login" />
+</HeadContent>
+
+<div class="auth-container">
+    <div class="card" style="padding:2.5rem">
+        <h1>Bem-vindo de volta</h1>
+        <p class="text-muted text-center mb-3" style="margin-top:-1rem">
+            Entre na sua conta para continuar.
+        </p>
+
+        @if (!string.IsNullOrEmpty(errorMessage))
+        {
+            <div class="alert alert-danger">@errorMessage</div>
+        }
+
+        <EditForm Model="model" OnValidSubmit="HandleLogin" FormName="login">
+            <DataAnnotationsValidator />
+
+            <div class="form-group">
+                <label>E-mail</label>
+                <InputText class="form-control" @bind-Value="model.Email" placeholder="seu@email.com"
+                    type="email" inputmode="email" autocomplete="email"
+                    autocapitalize="off" autocorrect="off" spellcheck="false" />
+                <ValidationMessage For="@(() => model.Email)" />
+            </div>
+
+            <div class="form-group">
+                <label>Senha</label>
+                <InputText class="form-control" type="password" @bind-Value="model.Password" placeholder="Sua senha"
+                    autocomplete="current-password" autocapitalize="off" autocorrect="off" spellcheck="false" />
+                <ValidationMessage For="@(() => model.Password)" />
+            </div>
+
+            <SubmitButton IsSubmitting="@loading"
+                          Variant="btn-primary" CssClass="btn-lg w-full"
+                          BusyText="Entrando...">
+                Entrar
+            </SubmitButton>
+        </EditForm>
+
+        <p style="text-align:center;margin-top:1rem;font-size:0.9rem">
+            <a href="/forgot-password" style="color:var(--brand-teal)">Esqueceu sua senha?</a>
+        </p>
+        <p style="text-align:center;margin-top:0.75rem;font-size:0.9rem;color:var(--gray-500)">
+            Não tem conta? <a href="/register">Cadastre-se gratuitamente</a>
+        </p>
+    </div>
+</div>
+
+@code {
+    [SupplyParameterFromQuery] public string? ReturnUrl { get; set; }
+
+    private LoginRequest model = new();
+    private string? errorMessage;
+    private bool loading;
+
+    private async Task HandleLogin()
+    {
+        loading = true;
+        errorMessage = null;
+
+        try
+        {
+            var response = await Api.LoginAsync(model);
+            if (response is not null && !string.IsNullOrEmpty(response.Token))
+            {
+                // E-mail não confirmado NÃO bloqueia mais o login.
+                // Banner no MainLayout avisa para confirmar; ações sensíveis exigem confirmação.
+                await AuthState.MarkUserAsAuthenticated(response.Token);
+                var redirect = string.IsNullOrEmpty(ReturnUrl) ? "/" : Uri.UnescapeDataString(ReturnUrl);
+                Navigation.NavigateTo(redirect);
+            }
+            else
+            {
+                errorMessage = "E-mail ou senha incorretos. Verifique e tente novamente.";
+            }
+        }
+        catch
+        {
+            errorMessage = "Não foi possível realizar o login. Tente novamente mais tarde.";
+        }
+
+        loading = false;
+    }
+}

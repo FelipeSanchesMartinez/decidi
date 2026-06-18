@@ -1,0 +1,261 @@
+@page "/freelancer/{UserId}"
+@inject ApiClient Api
+@using Decidi.Web.Components
+
+<PageTitle>@(profile?.FullName ?? "Freelancer") - decidi</PageTitle>
+
+<div class="container" style="max-width:900px;margin:0 auto;padding:2rem 1.5rem">
+    @if (loading)
+    {
+        <SkeletonCard Count="2" Lines="4" />
+    }
+    else if (profile is null)
+    {
+        <EmptyState Title="Perfil não encontrado"
+                    Message="O profissional que você procura não existe ou não está disponível.">
+            <CallToAction>
+                <a href="/projects" class="btn btn-primary">Ver projetos</a>
+            </CallToAction>
+        </EmptyState>
+    }
+    else
+    {
+        @* ===== PROFILE HEADER ===== *@
+        <div class="profile-header-card">
+            <div class="profile-header-top">
+                <Avatar Name="@profile.FullName" Url="@profile.AvatarUrl" Size="xl" />
+                <div class="profile-header-info">
+                    <h1 class="profile-name">@profile.FullName</h1>
+                    @if (!string.IsNullOrEmpty(profile.Title))
+                    {
+                        <p class="profile-title">@profile.Title</p>
+                    }
+                    <div class="profile-meta">
+                        @if (profile.TotalReviews > 0)
+                        {
+                            <div class="profile-rating">
+                                <StarRating Value="@((int)Math.Round(profile.AverageRating))"
+                                            ReadOnly="true"
+                                            ShowValue="true"
+                                            DisplayRating="@profile.AverageRating" />
+                                <span class="rating-count">(@profile.TotalReviews avaliações)</span>
+                            </div>
+                        }
+                        @if (profile.CompletedProjects > 0)
+                        {
+                            <span class="profile-stat-inline">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                                @profile.CompletedProjects projetos concluídos
+                            </span>
+                        }
+                        @if (profile.HourlyRate.HasValue)
+                        {
+                            <span class="profile-stat-inline budget">
+                                R$ @profile.HourlyRate.Value.ToString("N0")/h
+                            </span>
+                        }
+                    </div>
+                </div>
+            </div>
+
+            <div class="profile-stats-row">
+                <div class="profile-stat-card">
+                    <div class="stat-number gradient-text">@profile.CompletedProjects</div>
+                    <div class="stat-label">Projetos</div>
+                </div>
+                <div class="profile-stat-card">
+                    <div class="stat-number gradient-text">@(profile.AverageRating > 0 ? profile.AverageRating.ToString("0.0") : "—")</div>
+                    <div class="stat-label">Avaliação</div>
+                </div>
+                <div class="profile-stat-card">
+                    <div class="stat-number gradient-text">@profile.TotalReviews</div>
+                    <div class="stat-label">Avaliações</div>
+                </div>
+                <div class="profile-stat-card">
+                    <div class="stat-number gradient-text">@((DateTime.UtcNow - profile.CreatedAt).Days / 30)m</div>
+                    <div class="stat-label">Na plataforma</div>
+                </div>
+            </div>
+        </div>
+
+        @* ===== ABOUT ===== *@
+        @if (!string.IsNullOrEmpty(profile.Bio))
+        {
+            <div class="profile-section-card">
+                <h2 class="section-title">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                    Sobre
+                </h2>
+                <p class="profile-bio @(bioExpanded ? "is-expanded" : "")">@(BioForDisplay)</p>
+                @if (IsBioTruncatable)
+                {
+                    <button type="button" class="btn-link" @onclick="() => bioExpanded = !bioExpanded">
+                        @(bioExpanded ? "Ver menos" : "Ver mais")
+                    </button>
+                }
+            </div>
+        }
+
+        @* ===== INFO CARD ===== *@
+        <div class="profile-section-card">
+            <h2 class="section-title">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+                Informações
+            </h2>
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:1rem">
+                <div class="profile-info-item">
+                    <span class="profile-info-label">Membro desde</span>
+                    <span class="profile-info-value">@profile.CreatedAt.ToString("MMMM 'de' yyyy", new System.Globalization.CultureInfo("pt-BR"))</span>
+                </div>
+                @if (profile.HourlyRate.HasValue && profile.HourlyRate.Value > 0)
+                {
+                    <div class="profile-info-item">
+                        <span class="profile-info-label">Valor por hora</span>
+                        <span class="profile-info-value budget">R$ @profile.HourlyRate.Value.ToString("N0")/h</span>
+                    </div>
+                }
+                <div class="profile-info-item">
+                    <span class="profile-info-label">Projetos concluídos</span>
+                    <span class="profile-info-value">@profile.CompletedProjects</span>
+                </div>
+                <div class="profile-info-item">
+                    <span class="profile-info-label">Tempo na plataforma</span>
+                    <span class="profile-info-value">@FormatMemberTime(profile.CreatedAt)</span>
+                </div>
+            </div>
+        </div>
+
+        @* ===== SKILLS BY GROUP ===== *@
+        @if (profile.Skills.Count > 0)
+        {
+            <div class="profile-section-card">
+                <h2 class="section-title">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                    Habilidades
+                </h2>
+                @foreach (var group in profile.Skills.GroupBy(s => s.Group).OrderBy(g => g.Key))
+                {
+                    <div class="profile-skill-group">
+                        <span class="profile-skill-group-label">@group.Key</span>
+                        <div class="profile-skill-tags">
+                            @foreach (var skill in group)
+                            {
+                                <span class="profile-skill-tag">@skill.Name</span>
+                            }
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+
+        @* ===== PORTFOLIO ===== *@
+        @if (!string.IsNullOrEmpty(profile.PortfolioUrl))
+        {
+            <div class="profile-section-card">
+                <h2 class="section-title">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+                    Portfólio
+                </h2>
+                <a href="@profile.PortfolioUrl" target="_blank" rel="noopener" class="portfolio-link">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+                    @profile.PortfolioUrl
+                </a>
+            </div>
+        }
+
+        @* ===== REVIEWS ===== *@
+        <div class="profile-section-card">
+            <h2 class="section-title">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                Avaliações
+                @if (profile.TotalReviews > 0)
+                {
+                    <span class="review-count-badge">@profile.TotalReviews</span>
+                }
+            </h2>
+            @if (profile.Reviews.Count > 0)
+            {
+                @foreach (var review in profile.Reviews)
+                {
+                    <div class="review-card">
+                        <div class="review-header">
+                            <div class="review-author">
+                                <Avatar Name="@review.ClientName" Size="sm" />
+                                <div>
+                                    <div class="review-author-name">@review.ClientName</div>
+                                    <div class="review-project-name">@review.ProjectTitle</div>
+                                </div>
+                            </div>
+                            <div class="review-rating-date">
+                                <StarRating Value="@review.Rating" ReadOnly="true" />
+                                <span class="review-date">@review.CreatedAt.ToString("dd/MM/yyyy")</span>
+                            </div>
+                        </div>
+                        @if (!string.IsNullOrEmpty(review.Comment))
+                        {
+                            <p class="review-comment">@review.Comment</p>
+                        }
+                    </div>
+                }
+            }
+            else
+            {
+                <p class="text-muted" style="text-align:center;padding:2rem 0">Nenhuma avaliação ainda.</p>
+            }
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public string UserId { get; set; } = string.Empty;
+    private PublicProfileDto? profile;
+    private bool loading = true;
+    private bool bioExpanded;
+
+    private const int BioPreviewMaxChars = 280;
+
+    private bool IsBioTruncatable => (profile?.Bio?.Length ?? 0) > BioPreviewMaxChars;
+
+    private string BioForDisplay
+    {
+        get
+        {
+            var bio = profile?.Bio ?? string.Empty;
+            if (bioExpanded || bio.Length <= BioPreviewMaxChars)
+                return bio;
+            // Trunca em um espaço próximo do limite para evitar cortar no meio de uma palavra.
+            var cut = bio.LastIndexOf(' ', BioPreviewMaxChars - 1);
+            if (cut < BioPreviewMaxChars / 2) cut = BioPreviewMaxChars;
+            return bio[..cut].TrimEnd() + "…";
+        }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            profile = await Api.GetPublicProfileAsync(UserId);
+        }
+        catch
+        {
+            // Toast pelo handler global; mantém profile=null e mostra EmptyState.
+        }
+        finally
+        {
+            loading = false;
+        }
+    }
+
+    private static string FormatMemberTime(DateTime createdAt)
+    {
+        var days = (int)(DateTime.UtcNow - createdAt).TotalDays;
+        if (days < 1) return "Hoje";
+        if (days < 30) return $"{days} dia{(days > 1 ? "s" : "")}";
+        var months = days / 30;
+        if (months < 12) return $"{months} {(months > 1 ? "meses" : "mês")}";
+        var years = months / 12;
+        var remainingMonths = months % 12;
+        if (remainingMonths == 0) return $"{years} ano{(years > 1 ? "s" : "")}";
+        return $"{years} ano{(years > 1 ? "s" : "")} e {remainingMonths} {(remainingMonths > 1 ? "meses" : "mês")}";
+    }
+}

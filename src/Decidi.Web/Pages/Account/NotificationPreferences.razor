@@ -1,0 +1,86 @@
+@page "/account/preferences"
+@attribute [Authorize]
+@inject ApiClient Api
+@inject ToastService Toast
+
+<PageTitle>Preferências de notificação - decidi</PageTitle>
+
+<div class="container" style="max-width:680px;margin:0 auto;padding:2rem 1.5rem">
+    <div style="margin-bottom:2rem">
+        <h1 style="font-size:1.6rem;margin-bottom:0.25rem">Preferências de notificação</h1>
+        <p class="text-muted">Escolha quais e-mails você quer receber. Notificações dentro da plataforma continuam ativas para tudo.</p>
+    </div>
+
+    @if (loading)
+    {
+        <PageLoading />
+    }
+    else if (prefs is not null)
+    {
+        <div class="card" style="padding:1.5rem">
+            <h3 style="margin-bottom:0.85rem;font-size:1.05rem">Eventos do marketplace</h3>
+
+            <PrefRow Label="Você recebeu uma proposta nova"
+                Hint="Quando alguém envia proposta para um projeto seu."
+                Checked="prefs.EmailProposalReceived"
+                CheckedChanged="@(v => prefs.EmailProposalReceived = v)" />
+
+            <PrefRow Label="Sua proposta foi aceita"
+                Hint="Quando um cliente aceita uma proposta sua."
+                Checked="prefs.EmailProposalAccepted"
+                CheckedChanged="@(v => prefs.EmailProposalAccepted = v)" />
+
+            <PrefRow Label="Sua proposta não foi selecionada"
+                Hint="Resumo educado quando o cliente escolhe outra."
+                Checked="prefs.EmailProposalRejected"
+                CheckedChanged="@(v => prefs.EmailProposalRejected = v)" />
+
+            <PrefRow Label="Projeto concluído"
+                Hint="Convite para avaliar a outra parte após a conclusão."
+                Checked="prefs.EmailProjectCompleted"
+                CheckedChanged="@(v => prefs.EmailProjectCompleted = v)" />
+
+            <PrefRow Label="Resumo de mensagens de chat offline"
+                Hint="(Em breve) Resumo das mensagens recebidas quando você estiver offline."
+                Checked="prefs.EmailChatOfflineDigest"
+                CheckedChanged="@(v => prefs.EmailChatOfflineDigest = v)" />
+
+            <div style="display:flex;gap:0.6rem;margin-top:1.25rem">
+                <button class="btn btn-primary" @onclick="Save" disabled="@saving">
+                    @(saving ? "Salvando..." : "Salvar preferências")
+                </button>
+                <a class="btn btn-outline" href="/profile">Voltar</a>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    private NotificationPreferencesDto? prefs;
+    private bool loading = true;
+    private bool saving;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try { prefs = await Api.GetNotificationPreferencesAsync() ?? new(); }
+        catch { prefs = new NotificationPreferencesDto(); }
+        loading = false;
+    }
+
+    private async Task Save()
+    {
+        if (prefs is null) return;
+        saving = true;
+        try
+        {
+            var updated = await Api.UpdateNotificationPreferencesAsync(prefs);
+            if (updated is not null) prefs = updated;
+            Toast.ShowSuccess("Preferências salvas.");
+        }
+        catch
+        {
+            Toast.ShowError("Não foi possível salvar agora.");
+        }
+        saving = false;
+    }
+}

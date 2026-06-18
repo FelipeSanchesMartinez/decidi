@@ -1,0 +1,812 @@
+@page "/projects/{Id:guid}"
+@inject ApiClient Api
+@inject NavigationManager Navigation
+@inject JwtAuthStateProvider AuthState
+@using System.Security.Claims
+@using Decidi.Web.Components
+
+<PageTitle>@(project?.Title ?? "Projeto") - decidi</PageTitle>
+
+<div class="container" style="max-width:900px;margin:0 auto;padding:2rem 1.5rem">
+    @if (loadingProject)
+    {
+        <SkeletonCard Count="2" Lines="4" />
+    }
+    else if (project is null)
+    {
+        <EmptyState Title="Projeto não encontrado"
+                    Message="O projeto que você procura não existe ou não está mais disponível.">
+            <CallToAction>
+                <a href="/projects" class="btn btn-primary">Ver outros projetos</a>
+            </CallToAction>
+        </EmptyState>
+    }
+    else
+    {
+        @* ===== PROJECT HEADER ===== *@
+        <div class="project-detail-header">
+            <div class="pdh-left">
+                <div class="pdh-badges">
+                    <span class="badge badge-primary">@project.CategoryName</span>
+                    <StatusBadge Project="@project.Status" />
+                </div>
+                <h1 class="pdh-title">@project.Title</h1>
+                <div class="pdh-meta">
+                    <span class="pdh-meta-item">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                        @project.ClientName
+                    </span>
+                    <span class="pdh-meta-item">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                        @project.CreatedAt.ToString("dd/MM/yyyy")
+                    </span>
+                    @if (project.Deadline.HasValue)
+                    {
+                        <span class="pdh-meta-item">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                            Prazo: @project.Deadline.Value.ToString("dd/MM/yyyy")
+                        </span>
+                    }
+                </div>
+            </div>
+            <div class="pdh-right">
+                <div class="pdh-budget">
+                    @if (project.BudgetMin.HasValue || project.BudgetMax.HasValue)
+                    {
+                        <span class="pdh-budget-label">Faixa de referência</span>
+                        <span class="pdh-budget-value">R$ @(project.BudgetMin?.ToString("N0") ?? "?") - R$ @(project.BudgetMax?.ToString("N0") ?? "?")</span>
+                        <span class="pdh-budget-type">@(project.BudgetType == ProjectBudgetType.Hourly ? "Por Hora" : "Preço Fixo")</span>
+                    }
+                    else
+                    {
+                        <span class="pdh-budget-label">Cliente recebe propostas</span>
+                        <span class="pdh-budget-value" style="font-size:1rem">O valor é definido pelos profissionais</span>
+                    }
+                </div>
+            </div>
+        </div>
+
+        @* ===== DESCRIPTION ===== *@
+        <div class="card" style="padding:2rem">
+            <h3 style="margin-bottom:1rem;font-size:1.1rem">Descrição do Projeto</h3>
+            <p style="white-space:pre-wrap;line-height:1.7;color:var(--gray-700)">@project.Description</p>
+        </div>
+
+        @* ===== SKILLS ===== *@
+        @if (project.RequiredSkills.Any())
+        {
+            <div class="card" style="padding:1.5rem">
+                <h3 style="margin-bottom:0.75rem;font-size:1rem">Habilidades Necessárias</h3>
+                <div class="skills">
+                    @foreach (var skill in project.RequiredSkills)
+                    {
+                        <span class="ppc-skill">@skill</span>
+                    }
+                </div>
+            </div>
+        }
+
+        @* ===== PROJECT ACTIONS ===== *@
+        @if ((isProjectOwner || (!string.IsNullOrEmpty(currentUserId) && project.AcceptedFreelancerId == currentUserId)) && project.Status == ProjectStatus.InProgress)
+        {
+            <div style="display:flex;gap:0.75rem;margin:1.5rem 0">
+                <a href="/projects/@project.Id/milestones" class="btn btn-outline">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                    Milestones
+                </a>
+                <a href="/chat" class="btn btn-outline">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                    Chat
+                </a>
+            </div>
+        }
+
+        @* ===== REVIEW (Client, Completed) ===== *@
+        @if (isProjectOwner && project.Status == ProjectStatus.Completed && !hasReviewed && !string.IsNullOrEmpty(project.AcceptedFreelancerId))
+        {
+            <div class="card review-form-card" id="review">
+                <h3 style="margin-bottom:0.5rem">Avaliar Profissional</h3>
+                <p class="text-muted text-sm mb-2">Como foi sua experiência com @(project.AcceptedFreelancerName ?? "o profissional")?</p>
+
+                @if (!string.IsNullOrEmpty(reviewError))
+                {
+                    <div class="alert alert-danger">@reviewError</div>
+                }
+
+                <div class="form-group">
+                    <label>Nota geral</label>
+                    <StarRating @bind-Value="reviewModel.Rating" />
+                </div>
+                <div class="review-criteria">
+                    <div class="rc-item">
+                        <label>Qualidade</label>
+                        <StarRating Value="reviewModel.RatingQuality ?? 0" ValueChanged="@(v => reviewModel.RatingQuality = v == 0 ? null : v)" />
+                    </div>
+                    <div class="rc-item">
+                        <label>Comunicação</label>
+                        <StarRating Value="reviewModel.RatingCommunication ?? 0" ValueChanged="@(v => reviewModel.RatingCommunication = v == 0 ? null : v)" />
+                    </div>
+                    <div class="rc-item">
+                        <label>Prazo</label>
+                        <StarRating Value="reviewModel.RatingDeadline ?? 0" ValueChanged="@(v => reviewModel.RatingDeadline = v == 0 ? null : v)" />
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Comentário (opcional)</label>
+                    <textarea class="form-control" @bind="reviewModel.Comment" rows="3"
+                        placeholder="Conte sobre a qualidade do trabalho, comunicação, prazo..."
+                        autocapitalize="sentences" autocorrect="on"></textarea>
+                </div>
+
+                <p class="text-sm text-muted" style="margin-bottom:0.75rem">
+                    🔒 Sua avaliação fica privada até o profissional avaliar você (ou após 14 dias).
+                </p>
+
+                <SubmitButton Type="button" IsSubmitting="@reviewSubmitting"
+                              Disabled="@(reviewModel.Rating == 0)"
+                              BusyText="Enviando..." OnClick="SubmitReview">
+                    Enviar Avaliação
+                </SubmitButton>
+            </div>
+        }
+
+        @if (hasReviewed)
+        {
+            <div class="alert alert-success">Avaliação enviada com sucesso!</div>
+        }
+
+        @* ===== FREELANCER REVIEW (Freelancer, Completed) ===== *@
+        @if (isFreelancer && project.Status == ProjectStatus.Completed && !string.IsNullOrEmpty(project.AcceptedFreelancerId) && project.AcceptedFreelancerId == currentUserId && !hasFreelancerReviewed)
+        {
+            <div class="card review-form-card" id="review">
+                <h3 style="margin-bottom:0.5rem">Avaliar Cliente</h3>
+                <p class="text-muted text-sm mb-2">Como foi trabalhar com @project.ClientName?</p>
+
+                @if (!string.IsNullOrEmpty(freelancerReviewError))
+                {
+                    <div class="alert alert-danger">@freelancerReviewError</div>
+                }
+
+                <div class="form-group">
+                    <label>Nota geral</label>
+                    <StarRating @bind-Value="freelancerReviewModel.Rating" />
+                </div>
+                <div class="review-criteria">
+                    <div class="rc-item">
+                        <label>Qualidade do briefing</label>
+                        <StarRating Value="freelancerReviewModel.RatingQuality ?? 0" ValueChanged="@(v => freelancerReviewModel.RatingQuality = v == 0 ? null : v)" />
+                    </div>
+                    <div class="rc-item">
+                        <label>Comunicação</label>
+                        <StarRating Value="freelancerReviewModel.RatingCommunication ?? 0" ValueChanged="@(v => freelancerReviewModel.RatingCommunication = v == 0 ? null : v)" />
+                    </div>
+                    <div class="rc-item">
+                        <label>Pagamento em dia</label>
+                        <StarRating Value="freelancerReviewModel.RatingDeadline ?? 0" ValueChanged="@(v => freelancerReviewModel.RatingDeadline = v == 0 ? null : v)" />
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Comentário (opcional)</label>
+                    <textarea class="form-control" @bind="freelancerReviewModel.Comment" rows="3"
+                        placeholder="Comunicação, clareza dos requisitos, pagamento em dia..."
+                        autocapitalize="sentences" autocorrect="on"></textarea>
+                </div>
+
+                <p class="text-sm text-muted" style="margin-bottom:0.75rem">
+                    🔒 Sua avaliação fica privada até o cliente avaliar você (ou após 14 dias).
+                </p>
+
+                <SubmitButton Type="button" IsSubmitting="@freelancerReviewSubmitting"
+                              Disabled="@(freelancerReviewModel.Rating == 0)"
+                              BusyText="Enviando..." OnClick="SubmitFreelancerReview">
+                    Enviar Avaliação
+                </SubmitButton>
+            </div>
+        }
+
+        @if (hasFreelancerReviewed)
+        {
+            <div class="alert alert-success">Avaliação do cliente enviada com sucesso!</div>
+        }
+
+        @* ===== OWNER ACTIONS (state machine) ===== *@
+        @if (isProjectOwner && project.Status != ProjectStatus.Completed && project.Status != ProjectStatus.Cancelled)
+        {
+            <div class="card" style="padding:1rem 1.5rem;display:flex;flex-wrap:wrap;gap:0.6rem;align-items:center">
+                <span class="text-sm text-muted" style="margin-right:auto">Ações do projeto:</span>
+                @if (project.Status == ProjectStatus.Contracted)
+                {
+                    <SubmitButton Type="button" Variant="btn-secondary" CssClass="btn-sm"
+                                  IsSubmitting="@actionLoading" BusyText="Iniciando..."
+                                  OnClick="StartProject">
+                        Iniciar execução
+                    </SubmitButton>
+                }
+                @if (project.Status == ProjectStatus.InProgress || project.Status == ProjectStatus.Contracted)
+                {
+                    <SubmitButton Type="button" Variant="btn-primary" CssClass="btn-sm"
+                                  IsSubmitting="@actionLoading"
+                                  OnClick="ConfirmComplete">
+                        Concluir projeto
+                    </SubmitButton>
+                }
+                <SubmitButton Type="button" Variant="btn-outline" CssClass="btn-sm"
+                              IsSubmitting="@actionLoading"
+                              OnClick="ConfirmCancel">
+                    Cancelar projeto
+                </SubmitButton>
+            </div>
+        }
+
+        @* ===== ACCEPTED FREELANCER ===== *@
+        @if (!string.IsNullOrEmpty(project.AcceptedFreelancerName))
+        {
+            <div class="card" style="padding:1.5rem;border-left:4px solid var(--success)">
+                <div style="display:flex;align-items:center;gap:1rem">
+                    <Avatar Name="@project.AcceptedFreelancerName" Size="md" />
+                    <div>
+                        <div style="font-weight:700;font-family:var(--font-display)">
+                            <a href="/freelancer/@project.AcceptedFreelancerId">@project.AcceptedFreelancerName</a>
+                        </div>
+                        <span class="text-sm text-muted">Profissional contratado</span>
+                    </div>
+                </div>
+            </div>
+        }
+
+        @* ===== PROPOSALS (Owner View) ===== *@
+        @if (isProjectOwner && (project.Status == ProjectStatus.ReceivingProposals || project.Status == ProjectStatus.InNegotiation))
+        {
+            <div style="margin-top:2rem">
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem">
+                    <h2 style="font-size:1.3rem;margin:0">
+                        Propostas
+                        <span class="badge badge-gray" style="margin-left:0.5rem;font-size:0.85rem">@(proposals?.Count() ?? 0)</span>
+                    </h2>
+                    @if (proposals is not null && proposals.Count() >= 2)
+                    {
+                        <button class="btn btn-outline btn-sm" @onclick="ToggleCompareMode">
+                            @(compareMode ? "Sair da comparação" : "Comparar propostas")
+                        </button>
+                    }
+                </div>
+
+                @if (compareMode && selectedForCompare.Count >= 2)
+                {
+                    @* Versão mobile: cards verticais, um por freelancer comparado. *@
+                    <div class="compare-cards">
+                        @{
+                            var compareSet = GetCompareProposals();
+                            var minAmount = compareSet.Min(x => x.Amount);
+                            var minDelivery = compareSet.Min(x => x.DeliveryDays);
+                        }
+                        @foreach (var p in compareSet)
+                        {
+                            var costPerDay = p.DeliveryDays > 0 ? p.Amount / p.DeliveryDays : 0;
+                            <div class="compare-card">
+                                <header>
+                                    <Avatar Name="@p.FreelancerName" Size="sm" />
+                                    <a href="/freelancer/@p.FreelancerId" class="proposal-name">@p.FreelancerName</a>
+                                </header>
+                                <dl>
+                                    <dt>Valor</dt>
+                                    <dd class="@(p.Amount == minAmount ? "compare-best" : "")">R$ @p.Amount.ToString("N0")</dd>
+                                    <dt>Prazo</dt>
+                                    <dd class="@(p.DeliveryDays == minDelivery ? "compare-best" : "")">@p.DeliveryDays dias</dd>
+                                    <dt>Custo/dia</dt>
+                                    <dd>R$ @costPerDay.ToString("N0")/dia</dd>
+                                    <dt>Título</dt>
+                                    <dd>@(p.FreelancerTitle ?? "—")</dd>
+                                    <dt>Apresentação</dt>
+                                    <dd class="compare-letter">@p.CoverLetter</dd>
+                                </dl>
+                                @if (p.Status == ProposalStatus.Pending)
+                                {
+                                    <button class="btn btn-success btn-sm w-full" @onclick="() => ShowAcceptDialog(p.Id, p.FreelancerName)">Aceitar proposta</button>
+                                }
+                            </div>
+                        }
+                    </div>
+
+                    <div class="compare-table-wrap">
+                        <table class="compare-table">
+                            <thead>
+                                <tr>
+                                    <th></th>
+                                    @foreach (var p in GetCompareProposals())
+                                    {
+                                        <th>
+                                            <div class="compare-avatar">
+                                                <Avatar Name="@p.FreelancerName" Size="sm" />
+                                                <a href="/freelancer/@p.FreelancerId" class="proposal-name">@p.FreelancerName</a>
+                                            </div>
+                                        </th>
+                                    }
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td class="compare-label">Valor</td>
+                                    @foreach (var p in GetCompareProposals())
+                                    {
+                                        <td class="@GetBestClass(p.Amount, GetCompareProposals().Min(x => x.Amount))">R$ @p.Amount.ToString("N0")</td>
+                                    }
+                                </tr>
+                                <tr>
+                                    <td class="compare-label">Prazo</td>
+                                    @foreach (var p in GetCompareProposals())
+                                    {
+                                        <td class="@GetBestClass(p.DeliveryDays, GetCompareProposals().Min(x => x.DeliveryDays))">@p.DeliveryDays dias</td>
+                                    }
+                                </tr>
+                                <tr>
+                                    <td class="compare-label">Custo/dia</td>
+                                    @foreach (var p in GetCompareProposals())
+                                    {
+                                        var costPerDay = p.DeliveryDays > 0 ? p.Amount / p.DeliveryDays : 0;
+                                        <td>R$ @costPerDay.ToString("N0")/dia</td>
+                                    }
+                                </tr>
+                                <tr>
+                                    <td class="compare-label">Título</td>
+                                    @foreach (var p in GetCompareProposals())
+                                    {
+                                        <td>@(p.FreelancerTitle ?? "—")</td>
+                                    }
+                                </tr>
+                                <tr>
+                                    <td class="compare-label">Apresentação</td>
+                                    @foreach (var p in GetCompareProposals())
+                                    {
+                                        <td class="compare-letter">@p.CoverLetter</td>
+                                    }
+                                </tr>
+                                <tr>
+                                    <td class="compare-label">Ações</td>
+                                    @foreach (var p in GetCompareProposals())
+                                    {
+                                        <td>
+                                            @if (p.Status == ProposalStatus.Pending)
+                                            {
+                                                <button class="btn btn-success btn-sm" @onclick="() => ShowAcceptDialog(p.Id, p.FreelancerName)">Aceitar</button>
+                                            }
+                                        </td>
+                                    }
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                }
+
+                @if (proposals is not null && proposals.Any())
+                {
+                    @foreach (var prop in proposals)
+                    {
+                        <div class="proposal-card @(selectedForCompare.Contains(prop.Id) ? "compare-selected" : "")">
+                            @if (compareMode)
+                            {
+                                <label class="compare-check" @onclick:stopPropagation="true">
+                                    <input type="checkbox" checked="@selectedForCompare.Contains(prop.Id)"
+                                        @onchange="() => ToggleCompareSelect(prop.Id)" />
+                                    Comparar
+                                </label>
+                            }
+                            <div class="proposal-header">
+                                <div class="proposal-author">
+                                    <Avatar Name="@prop.FreelancerName" Size="md" />
+                                    <div>
+                                        <a href="/freelancer/@prop.FreelancerId" class="proposal-name">@prop.FreelancerName</a>
+                                        @if (!string.IsNullOrEmpty(prop.FreelancerTitle))
+                                        {
+                                            <div class="proposal-title-text">@prop.FreelancerTitle</div>
+                                        }
+                                    </div>
+                                </div>
+                                <div class="proposal-amount">
+                                    <div class="budget">R$ @prop.Amount.ToString("N0")</div>
+                                    <span class="text-sm text-muted">@prop.DeliveryDays dias</span>
+                                </div>
+                            </div>
+                            <p class="proposal-letter">@prop.CoverLetter</p>
+                            @if (prop.Status == ProposalStatus.Pending)
+                            {
+                                <div style="display:flex;gap:0.5rem;margin-top:1rem">
+                                    <button class="btn btn-success btn-sm" @onclick="() => ShowAcceptDialog(prop.Id, prop.FreelancerName)">Aceitar Proposta</button>
+                                    <button class="btn btn-danger btn-sm" @onclick="() => ShowRejectDialog(prop.Id, prop.FreelancerName)">Rejeitar</button>
+                                </div>
+                            }
+                            else
+                            {
+                                <div style="margin-top:0.75rem">
+                                    <StatusBadge Proposal="@prop.Status" />
+                                </div>
+                            }
+                        </div>
+                    }
+                }
+                else
+                {
+                    <p class="text-muted text-center" style="padding:2rem">Nenhuma proposta recebida ainda.</p>
+                }
+            </div>
+        }
+
+        @* ===== SUBMIT PROPOSAL (Freelancer View) ===== *@
+        @if (isFreelancer && (project.Status == ProjectStatus.ReceivingProposals || project.Status == ProjectStatus.InNegotiation) && !hasProposed)
+        {
+            @if (!isProfileComplete)
+            {
+                <div class="profile-alert" style="margin-top:2rem">
+                    <div class="profile-alert-icon">!</div>
+                    <div class="profile-alert-content">
+                        <strong>Complete seu perfil para enviar propostas</strong>
+                        <p>Você precisa preencher seu título profissional, bio e habilidades antes de poder enviar propostas.</p>
+                    </div>
+                    <a href="/profile/edit" class="btn btn-primary btn-sm">Completar Perfil</a>
+                </div>
+            }
+            else
+            {
+                <div class="card" style="margin-top:2rem;padding:2rem;border-left:4px solid var(--brand-teal)">
+                    <h2 style="font-size:1.3rem;margin-bottom:0.25rem">Enviar Proposta</h2>
+                    <p class="text-muted text-sm" style="margin-bottom:1.25rem">Descreva sua abordagem e condições para este projeto.</p>
+
+                    @if (!string.IsNullOrEmpty(proposalError))
+                    {
+                        <div class="alert alert-danger">@proposalError</div>
+                    }
+
+                    <EditForm Model="proposalModel" OnValidSubmit="SubmitProposal" FormName="proposal">
+                        <DataAnnotationsValidator />
+                        <div class="form-row">
+                            <div class="form-group" style="flex:1">
+                                <label>Valor da proposta (R$) <span style="color:var(--error)">*</span></label>
+                                <InputNumber class="form-control" @bind-Value="proposalModel.Amount"
+                                    inputmode="decimal" />
+                                <ValidationMessage For="@(() => proposalModel.Amount)" />
+                                @if (proposalModel.Amount > 0)
+                                {
+                                    var commissionAmount = proposalModel.Amount * (CommissionPct / 100m);
+                                    var net = Math.Max(0, proposalModel.Amount - commissionAmount - FreelancerFee);
+                                    <div class="net-value-calc">
+                                        <div class="net-row">
+                                            <span>Valor bruto</span>
+                                            <span>R$ @proposalModel.Amount.ToString("N2")</span>
+                                        </div>
+                                        <div class="net-row deduction">
+                                            <span>Taxa plataforma (@CommissionPct.ToString("0.##")%)</span>
+                                            <span>- R$ @commissionAmount.ToString("N2")</span>
+                                        </div>
+                                        <div class="net-row deduction">
+                                            <span>Taxa fixa</span>
+                                            <span>- R$ @FreelancerFee.ToString("N2")</span>
+                                        </div>
+                                        <div class="net-row net-total">
+                                            <span>Você recebe</span>
+                                            <span>R$ @net.ToString("N2")</span>
+                                        </div>
+                                    </div>
+                                }
+                                else
+                                {
+                                    <span class="form-hint">Quanto você cobraria para executar este projeto.</span>
+                                }
+                            </div>
+                            <div class="form-group" style="flex:1">
+                                <label>Prazo de entrega (dias) <span style="color:var(--error)">*</span></label>
+                                <InputNumber class="form-control" @bind-Value="proposalModel.DeliveryDays"
+                                    inputmode="numeric" />
+                                <ValidationMessage For="@(() => proposalModel.DeliveryDays)" />
+                                <span class="form-hint">Dias úteis estimados para conclusão.</span>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>Carta de apresentação <span style="color:var(--error)">*</span></label>
+                            <InputTextArea class="form-control" @bind-Value="proposalModel.CoverLetter" rows="5"
+                                placeholder="Apresente-se, destaque sua experiência relevante e como pretende executar o projeto..."
+                                autocapitalize="sentences" autocorrect="on" />
+                            <ValidationMessage For="@(() => proposalModel.CoverLetter)" />
+                            <span class="form-hint">Dica: propostas personalizadas para o projeto têm 3x mais chance de serem aceitas.</span>
+                        </div>
+                        <SubmitButton IsSubmitting="@submitting" Variant="btn-primary" CssClass="btn-lg"
+                                      BusyText="Enviando...">
+                            Enviar Proposta
+                        </SubmitButton>
+                        <p class="text-sm text-muted" style="margin-top:0.75rem">
+                            Ao enviar, a taxa de <strong>@CommissionPct.ToString("0.##")% + R$ @FreelancerFee.ToString("N2")</strong> será aplicada apenas se sua proposta for aceita e o pagamento for realizado.
+                        </p>
+                    </EditForm>
+                </div>
+            }
+        }
+
+        @if (isFreelancer && hasProposed)
+        {
+            <div class="alert alert-success" style="margin-top:1.5rem">Você já enviou uma proposta para este projeto.</div>
+        }
+    }
+</div>
+
+<ConfirmDialog @ref="acceptDialog"
+    Title="Aceitar proposta"
+    Message="@acceptMessage"
+    ConfirmText="Aceitar"
+    ButtonClass="btn-success"
+    OnConfirm="ConfirmAcceptProposal" />
+
+<ConfirmDialog @ref="rejectDialog"
+    Title="Rejeitar proposta"
+    Message="@rejectMessage"
+    ConfirmText="Rejeitar"
+    ButtonClass="btn-danger"
+    OnConfirm="ConfirmRejectProposal" />
+
+<ConfirmDialog @ref="completeDialog"
+    Title="Concluir projeto"
+    Message="Tem certeza que deseja marcar este projeto como concluído? Após isso, vocês podem se avaliar."
+    ConfirmText="Concluir"
+    ButtonClass="btn-primary"
+    OnConfirm="ExecuteComplete" />
+
+<ConfirmDialog @ref="cancelDialog"
+    Title="Cancelar projeto"
+    Message="Tem certeza que deseja cancelar? O profissional contratado (se houver) será notificado. Você pode incluir um motivo."
+    ConfirmText="Cancelar projeto"
+    ButtonClass="btn-danger"
+    OnConfirm="ExecuteCancel" />
+
+@code {
+    [Parameter] public Guid Id { get; set; }
+
+    private ProjectDto? project;
+    private bool loadingProject = true;
+    private IEnumerable<ProposalDto>? proposals;
+    private CreateProposalRequest proposalModel = new();
+    private CreateReviewRequest reviewModel = new();
+    private string? currentUserId;
+    private bool isProjectOwner;
+    private bool isFreelancer;
+    private bool isProfileComplete;
+    private bool hasProposed;
+    private bool submitting;
+    private bool hasReviewed;
+    private bool reviewSubmitting;
+    private bool hasFreelancerReviewed;
+    private bool freelancerReviewSubmitting;
+    private CreateFreelancerReviewRequest freelancerReviewModel = new();
+    private string? freelancerReviewError;
+    private string? proposalError;
+    private string? reviewError;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthState.GetAuthenticationStateAsync();
+        currentUserId = authState.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        var role = authState.User.FindFirst("role")?.Value;
+        isFreelancer = role == "Freelancer";
+
+        // FASE 1 — chamadas independentes do project. Falhas isoladas: handler global toasta.
+        var feesTask = SafeAsync(() => Api.GetCurrentFeesAsync());
+        var projectTask = SafeAsync(() => Api.GetProjectAsync(Id));
+        var myProposalsTask = isFreelancer
+            ? SafeAsync(() => Api.GetMyProposalsAsync())
+            : Task.FromResult<IEnumerable<ProposalDto>?>(null);
+        var profileTask = isFreelancer
+            ? SafeAsync(() => Api.GetProfileAsync())
+            : Task.FromResult<UserProfileDto?>(null);
+
+        await Task.WhenAll(feesTask, projectTask, myProposalsTask, profileTask);
+
+        var fees = feesTask.Result;
+        if (fees is not null)
+        {
+            CommissionPct = fees.CommissionPct;
+            FreelancerFee = fees.FreelancerFee;
+        }
+
+        project = projectTask.Result;
+        if (project is null)
+        {
+            loadingProject = false;
+            return;
+        }
+
+        isProjectOwner = project.ClientId == currentUserId;
+        proposalModel.ProjectId = Id;
+
+        if (isFreelancer)
+        {
+            hasProposed = myProposalsTask.Result?.Any(p => p.ProjectId == Id) ?? false;
+            var profile = profileTask.Result;
+            isProfileComplete = profile is not null
+                && !string.IsNullOrWhiteSpace(profile.Title)
+                && profile.Title != "Novo Freelancer"
+                && !string.IsNullOrWhiteSpace(profile.Bio)
+                && profile.Skills.Count > 0;
+        }
+
+        // FASE 2 — agora que sabemos o que carregar, paraleliza o que depende de project.
+        var projectProposalsTask = isProjectOwner
+            ? SafeAsync(() => Api.GetProjectProposalsAsync(Id))
+            : Task.FromResult<IEnumerable<ProposalDto>?>(null);
+
+        var clientReviewsTask = (isProjectOwner
+            && project.Status == ProjectStatus.Completed
+            && !string.IsNullOrEmpty(project.AcceptedFreelancerId))
+                ? SafeAsync(() => Api.GetFreelancerReviewsAsync(project.AcceptedFreelancerId!))
+                : Task.FromResult<IEnumerable<ReviewDto>?>(null);
+
+        var freelancerReviewsTask = (isFreelancer
+            && project.Status == ProjectStatus.Completed
+            && project.AcceptedFreelancerId == currentUserId)
+                ? SafeAsync(() => Api.GetClientReviewsAsync(project.ClientId))
+                : Task.FromResult<IEnumerable<ReviewDto>?>(null);
+
+        await Task.WhenAll(projectProposalsTask, clientReviewsTask, freelancerReviewsTask);
+
+        proposals = projectProposalsTask.Result;
+
+        if (isProjectOwner && project.Status == ProjectStatus.Completed && !string.IsNullOrEmpty(project.AcceptedFreelancerId))
+        {
+            reviewModel.ProjectId = project.Id;
+            reviewModel.FreelancerId = project.AcceptedFreelancerId!;
+            hasReviewed = clientReviewsTask.Result?.Any(r =>
+                r.ProjectId == project.Id
+                && r.ClientId == currentUserId
+                && r.ReviewerRole == ReviewerRole.Client) ?? false;
+        }
+
+        if (isFreelancer && project.Status == ProjectStatus.Completed && project.AcceptedFreelancerId == currentUserId)
+        {
+            freelancerReviewModel.ProjectId = project.Id;
+            hasFreelancerReviewed = freelancerReviewsTask.Result?.Any(r =>
+                r.ProjectId == project.Id
+                && r.FreelancerId == currentUserId) ?? false;
+        }
+
+        loadingProject = false;
+    }
+
+    private static async Task<T?> SafeAsync<T>(Func<Task<T?>> call)
+    {
+        try { return await call(); }
+        catch { return default; }
+    }
+
+    private async Task SubmitProposal()
+    {
+        submitting = true;
+        proposalError = null;
+        var result = await Api.CreateProposalAsync(proposalModel);
+        if (result is not null)
+            hasProposed = true;
+        else
+            proposalError = "Erro ao enviar proposta.";
+        submitting = false;
+    }
+
+    private async Task SubmitReview()
+    {
+        reviewSubmitting = true;
+        reviewError = null;
+        var result = await Api.CreateReviewAsync(reviewModel);
+        if (result is not null)
+            hasReviewed = true;
+        else
+            reviewError = "Erro ao enviar avaliação.";
+        reviewSubmitting = false;
+    }
+
+    private async Task SubmitFreelancerReview()
+    {
+        freelancerReviewSubmitting = true;
+        freelancerReviewError = null;
+        var result = await Api.CreateFreelancerReviewAsync(freelancerReviewModel);
+        if (result is not null)
+            hasFreelancerReviewed = true;
+        else
+            freelancerReviewError = "Erro ao enviar avaliação.";
+        freelancerReviewSubmitting = false;
+    }
+
+    // Taxas vigentes carregadas do backend (com fallback para os valores documentados).
+    private decimal CommissionPct = 12m;
+    private decimal FreelancerFee = 2.99m;
+
+    private bool actionLoading;
+    private ConfirmDialog completeDialog = null!;
+    private ConfirmDialog cancelDialog = null!;
+    private string cancelReason = string.Empty;
+
+    private async Task StartProject()
+    {
+        if (project is null) return;
+        actionLoading = true;
+        var updated = await Api.StartProjectAsync(project.Id);
+        if (updated is not null) project = updated;
+        actionLoading = false;
+    }
+
+    private void ConfirmComplete() => completeDialog.Show();
+
+    private async Task ExecuteComplete()
+    {
+        if (project is null) return;
+        actionLoading = true;
+        var updated = await Api.CompleteProjectAsync(project.Id);
+        if (updated is not null) project = updated;
+        actionLoading = false;
+    }
+
+    private void ConfirmCancel() => cancelDialog.Show();
+
+    private async Task ExecuteCancel()
+    {
+        if (project is null) return;
+        actionLoading = true;
+        var updated = await Api.CancelProjectAsync(project.Id, cancelReason);
+        if (updated is not null) project = updated;
+        cancelReason = string.Empty;
+        actionLoading = false;
+    }
+
+    private bool compareMode;
+    private HashSet<Guid> selectedForCompare = [];
+
+    private void ToggleCompareMode()
+    {
+        compareMode = !compareMode;
+        if (!compareMode) selectedForCompare.Clear();
+    }
+
+    private void ToggleCompareSelect(Guid id)
+    {
+        if (!selectedForCompare.Remove(id))
+            selectedForCompare.Add(id);
+    }
+
+    private List<ProposalDto> GetCompareProposals() =>
+        proposals?.Where(p => selectedForCompare.Contains(p.Id)).ToList() ?? [];
+
+    private static string GetBestClass(decimal value, decimal best) =>
+        value == best ? "compare-best" : "";
+
+    private static string GetBestClass(int value, int best) =>
+        value == best ? "compare-best" : "";
+
+    private ConfirmDialog acceptDialog = null!;
+    private ConfirmDialog rejectDialog = null!;
+    private Guid pendingProposalId;
+    private string acceptMessage = string.Empty;
+    private string rejectMessage = string.Empty;
+
+    private void ShowAcceptDialog(Guid proposalId, string freelancerName)
+    {
+        pendingProposalId = proposalId;
+        acceptMessage = $"Aceitar a proposta de {freelancerName}? As demais propostas pendentes serão automaticamente rejeitadas.";
+        acceptDialog.Show();
+    }
+
+    private void ShowRejectDialog(Guid proposalId, string freelancerName)
+    {
+        pendingProposalId = proposalId;
+        rejectMessage = $"Rejeitar a proposta de {freelancerName}? Esta ação não pode ser desfeita.";
+        rejectDialog.Show();
+    }
+
+    private async Task ConfirmAcceptProposal()
+    {
+        await Api.AcceptProposalAsync(pendingProposalId);
+        project = await Api.GetProjectAsync(Id);
+        proposals = await Api.GetProjectProposalsAsync(Id);
+    }
+
+    private async Task ConfirmRejectProposal()
+    {
+        await Api.RejectProposalAsync(pendingProposalId);
+        proposals = await Api.GetProjectProposalsAsync(Id);
+    }
+
+}

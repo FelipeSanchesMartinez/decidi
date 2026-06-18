@@ -1,0 +1,231 @@
+@page "/register"
+@inject ApiClient Api
+@inject JwtAuthStateProvider AuthState
+@inject NavigationManager Navigation
+
+<PageTitle>Cadastrar - decidi</PageTitle>
+<HeadContent>
+    <meta name="description" content="Cadastre-se grátis na decidi: publique projetos ou envie propostas. Zero mensalidade, comece em menos de 30 segundos." />
+    <link rel="canonical" href="https://decidi.com.br/register" />
+</HeadContent>
+
+<div class="auth-container">
+    <div class="card" style="padding:2.5rem">
+        <h1>Criar sua conta</h1>
+        <p class="text-muted text-center mb-3" style="margin-top:-1rem">
+            Cadastre-se gratuitamente e comece em segundos.
+        </p>
+
+        @if (!string.IsNullOrEmpty(errorMessage))
+        {
+            <div class="alert alert-danger">@errorMessage</div>
+        }
+
+        <EditForm Model="model" OnValidSubmit="HandleRegister" FormName="register">
+            <DataAnnotationsValidator />
+
+            <div class="form-group">
+                <label>Tipo de conta</label>
+                <div class="role-toggle">
+                    <button type="button"
+                        class="@(model.Role == UserRole.Client ? "active" : "")"
+                        @onclick="() => model.Role = UserRole.Client">
+                        <span style="font-size:1.2rem">&#128188;</span> Cliente
+                    </button>
+                    <button type="button"
+                        class="@(model.Role == UserRole.Freelancer ? "active" : "")"
+                        @onclick="() => model.Role = UserRole.Freelancer">
+                        <span style="font-size:1.2rem">&#128187;</span> Freelancer
+                    </button>
+                </div>
+                <p class="text-sm text-muted" style="text-align:center;margin-top:0.5rem">
+                    @(model.Role == UserRole.Client
+                        ? "Publique projetos grátis e contrate profissionais. Taxa: apenas R$3,99 ao contratar."
+                        : "Encontre projetos e envie propostas. Taxa: 12% + R$2,99 por transação.")
+                </p>
+            </div>
+
+            <div class="form-group">
+                <label>Nome completo <span style="color:var(--error)">*</span></label>
+                <InputText class="form-control" @bind-Value="model.FullName" placeholder="Seu nome completo"
+                    autocomplete="name" autocapitalize="words" autocorrect="off" />
+                <ValidationMessage For="@(() => model.FullName)" />
+            </div>
+
+            <div class="form-group">
+                <label>E-mail <span style="color:var(--error)">*</span></label>
+                <input class="form-control" type="email" value="@model.Email"
+                    @oninput="e => model.Email = e.Value?.ToString() ?? string.Empty"
+                    placeholder="seu@email.com"
+                    inputmode="email" autocomplete="email"
+                    autocapitalize="off" autocorrect="off" spellcheck="false" />
+                @if (!string.IsNullOrEmpty(model.Email))
+                {
+                    @if (IsValidEmail(model.Email))
+                    {
+                        <span class="form-hint" style="color:var(--success)">&#10003; E-mail válido</span>
+                    }
+                    else
+                    {
+                        <span class="form-hint" style="color:var(--error)">&#10005; Formato de e-mail inválido</span>
+                    }
+                }
+            </div>
+
+            <div class="form-group">
+                <label>Senha <span style="color:var(--error)">*</span></label>
+                <input class="form-control" type="password" value="@model.Password"
+                    @oninput="e => model.Password = e.Value?.ToString() ?? string.Empty"
+                    placeholder="Crie uma senha forte"
+                    autocomplete="new-password" autocapitalize="off" autocorrect="off" spellcheck="false" />
+                @if (!string.IsNullOrEmpty(model.Password))
+                {
+                    <div class="pw-requirements">
+                        <div class="pw-req @(model.Password.Length >= 6 ? "met" : "")">
+                            <span class="pw-icon">@(model.Password.Length >= 6 ? "✓" : "✗")</span>
+                            <span>Mínimo 6 caracteres</span>
+                        </div>
+                        <div class="pw-req @(model.Password.Any(char.IsDigit) ? "met" : "")">
+                            <span class="pw-icon">@(model.Password.Any(char.IsDigit) ? "✓" : "✗")</span>
+                            <span>Pelo menos 1 número</span>
+                        </div>
+                        <div class="pw-req @(model.Password.Any(char.IsLetter) ? "met" : "")">
+                            <span class="pw-icon">@(model.Password.Any(char.IsLetter) ? "✓" : "✗")</span>
+                            <span>Pelo menos 1 letra</span>
+                        </div>
+                    </div>
+                }
+            </div>
+
+            <div class="form-group">
+                <label>Confirmar senha <span style="color:var(--error)">*</span></label>
+                <input class="form-control" type="password" value="@model.ConfirmPassword"
+                    @oninput="e => model.ConfirmPassword = e.Value?.ToString() ?? string.Empty"
+                    placeholder="Repita a senha"
+                    autocomplete="new-password" autocapitalize="off" autocorrect="off" spellcheck="false" />
+                @if (!string.IsNullOrEmpty(model.ConfirmPassword))
+                {
+                    @if (model.Password == model.ConfirmPassword)
+                    {
+                        <span class="form-hint" style="color:var(--success)">&#10003; Senhas conferem</span>
+                    }
+                    else
+                    {
+                        <span class="form-hint" style="color:var(--error)">&#10005; Senhas não conferem</span>
+                    }
+                }
+            </div>
+
+            <div class="form-group">
+                <label class="terms-check">
+                    <input type="checkbox" checked="@model.AcceptedTerms"
+                        @onchange="e => model.AcceptedTerms = (bool)(e.Value ?? false)" />
+                    <span>
+                        Li e aceito os
+                        <a href="/termos" target="_blank" rel="noopener">Termos de Uso</a>,
+                        a <a href="/privacidade" target="_blank" rel="noopener">Política de Privacidade</a>
+                        e o tratamento dos meus dados conforme a
+                        <a href="/lgpd" target="_blank" rel="noopener">LGPD</a>.
+                    </span>
+                </label>
+                @if (showTermsError && !model.AcceptedTerms)
+                {
+                    <span class="form-hint" style="color:var(--error)">&#10005; Você precisa aceitar os termos para continuar</span>
+                }
+            </div>
+
+            <SubmitButton IsSubmitting="@loading" Disabled="@(!IsFormValid())"
+                          Variant="btn-primary" CssClass="btn-lg w-full"
+                          BusyText="Cadastrando...">
+                Criar Conta Grátis
+            </SubmitButton>
+        </EditForm>
+
+        <p style="text-align:center;margin-top:1.5rem;font-size:0.9rem;color:var(--gray-500)">
+            Já tem conta? <a href="/login">Entrar</a>
+        </p>
+    </div>
+</div>
+
+@code {
+    [SupplyParameterFromQuery] public string? Role { get; set; }
+    [SupplyParameterFromQuery] public string? Hint { get; set; }
+
+    private RegisterRequest model = new();
+    private string? errorMessage;
+    private bool loading;
+    private bool showTermsError;
+
+    protected override void OnInitialized()
+    {
+        if (string.Equals(Role, "freelancer", StringComparison.OrdinalIgnoreCase))
+            model.Role = UserRole.Freelancer;
+        else if (string.Equals(Role, "client", StringComparison.OrdinalIgnoreCase))
+            model.Role = UserRole.Client;
+    }
+
+    private async Task HandleRegister()
+    {
+        showTermsError = true;
+        if (!model.AcceptedTerms)
+        {
+            errorMessage = "Você precisa aceitar os Termos de Uso e a Política de Privacidade.";
+            return;
+        }
+
+        loading = true;
+        errorMessage = null;
+
+        try
+        {
+            var response = await Api.RegisterAsync(model);
+            if (response is not null && !string.IsNullOrEmpty(response.Token))
+            {
+                // Autologa imediatamente, mesmo que e-mail não esteja confirmado.
+                // Banner global pede confirmação; ações sensíveis exigem confirmação.
+                await AuthState.MarkUserAsAuthenticated(response.Token);
+                if (model.Role == UserRole.Freelancer)
+                {
+                    Navigation.NavigateTo("/onboarding");
+                }
+                else
+                {
+                    var dest = !string.IsNullOrWhiteSpace(Hint)
+                        ? $"/projects/create?hint={Uri.EscapeDataString(Hint)}"
+                        : "/";
+                    Navigation.NavigateTo(dest);
+                }
+            }
+            else
+            {
+                errorMessage = "Erro ao cadastrar. Verifique os dados e tente novamente.";
+            }
+        }
+        catch
+        {
+            errorMessage = "Não foi possível criar a conta. Tente novamente.";
+        }
+
+        loading = false;
+    }
+
+    private bool IsValidEmail(string email)
+    {
+        if (string.IsNullOrWhiteSpace(email)) return false;
+        var idx = email.IndexOf('@');
+        if (idx <= 0) return false;
+        var domain = email[(idx + 1)..];
+        return domain.Contains('.') && domain.Length > 2 && !domain.EndsWith('.');
+    }
+
+    private bool IsFormValid()
+    {
+        return !string.IsNullOrWhiteSpace(model.FullName)
+            && IsValidEmail(model.Email)
+            && model.Password.Length >= 6
+            && model.Password.Any(char.IsDigit)
+            && model.Password.Any(char.IsLetter)
+            && model.Password == model.ConfirmPassword
+            && model.AcceptedTerms;
+    }
+}

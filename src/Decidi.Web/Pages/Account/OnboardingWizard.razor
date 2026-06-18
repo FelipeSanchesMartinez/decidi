@@ -1,0 +1,228 @@
+@page "/onboarding"
+@attribute [Authorize(Roles = "Freelancer")]
+@inject ApiClient Api
+@inject NavigationManager Navigation
+@inject AppState State
+@using Decidi.Web.Components
+
+<PageTitle>Complete seu perfil - decidi</PageTitle>
+
+<div class="container" style="max-width:640px;margin:0 auto;padding:2rem 1.5rem">
+    <div class="wizard-header">
+        <h1>Bem-vindo à <span class="gradient-text">decidi</span>!</h1>
+        <p class="text-muted">Complete seu perfil em 3 passos para começar a enviar propostas.</p>
+        <div class="wizard-steps">
+            @for (int i = 1; i <= 3; i++)
+            {
+                var step = i;
+                <div class="wizard-step @(currentStep == step ? "active" : "") @(currentStep > step ? "done" : "")">
+                    <div class="wizard-step-num">@(currentStep > step ? "✓" : step.ToString())</div>
+                    <span>@GetStepLabel(step)</span>
+                </div>
+            }
+        </div>
+    </div>
+
+    @if (loading)
+    {
+        <div class="loading"><div class="spinner"></div>Carregando...</div>
+    }
+    else
+    {
+        <div class="card" style="padding:2rem">
+            @if (currentStep == 1)
+            {
+                <h2 style="font-size:1.2rem;margin-bottom:0.25rem">Apresente-se</h2>
+                <p class="text-muted text-sm" style="margin-bottom:1.25rem">Como você quer ser visto pelos clientes?</p>
+
+                <div class="form-group">
+                    <label>Título profissional <span style="color:var(--error)">*</span></label>
+                    <input class="form-control" @bind="model.Title" maxlength="200"
+                        placeholder="Ex: Desenvolvedor Full Stack .NET" />
+                    <span class="form-hint">Curto e direto — será o primeiro texto que o cliente vê.</span>
+                </div>
+
+                <div class="form-group">
+                    <label>Sobre mim <span style="color:var(--error)">*</span></label>
+                    <textarea class="form-control" @bind="model.Bio" rows="5"
+                        maxlength="@UpdateProfileRequest.BioMaxLength"
+                        placeholder="Conte sobre sua experiência, projetos e especializações..."></textarea>
+                    <CharCounter Value="@model.Bio"
+                                 Min="UpdateProfileRequest.BioMinLength"
+                                 Max="UpdateProfileRequest.BioMaxLength"
+                                 Hint="@BioHint" />
+                </div>
+            }
+            else if (currentStep == 2)
+            {
+                <h2 style="font-size:1.2rem;margin-bottom:0.25rem">Suas habilidades</h2>
+                <p class="text-muted text-sm" style="margin-bottom:1.25rem">Selecione as tecnologias e skills que você domina.</p>
+
+                <div class="form-group">
+                    <SkillTagInput @bind-SelectedSkills="selectedSkills" />
+                    @if (selectedSkills.Count == 0)
+                    {
+                        <span class="form-hint" style="color:var(--error)">Selecione ao menos 1 habilidade.</span>
+                    }
+                </div>
+            }
+            else if (currentStep == 3)
+            {
+                <h2 style="font-size:1.2rem;margin-bottom:0.25rem">Detalhes finais</h2>
+                <p class="text-muted text-sm" style="margin-bottom:1.25rem">Opcional, mas ajuda clientes a te encontrarem.</p>
+
+                <div class="form-group">
+                    <label>Valor por hora (R$)</label>
+                    <input type="number" class="form-control" @bind="model.HourlyRate" placeholder="0" />
+                    <span class="form-hint">Ajuda clientes a ter uma noção do seu valor.</span>
+                </div>
+
+                <div class="form-group">
+                    <label>Portfólio / GitHub / LinkedIn</label>
+                    <input class="form-control" @bind="model.PortfolioUrl" placeholder="https://..." />
+                    <span class="form-hint">Link externo para mostrar seu trabalho.</span>
+                </div>
+            }
+
+            @if (!string.IsNullOrEmpty(errorMessage))
+            {
+                <div class="alert alert-danger" style="margin-top:1rem">@errorMessage</div>
+            }
+
+            <div style="display:flex;justify-content:space-between;margin-top:1.5rem">
+                @if (currentStep > 1)
+                {
+                    <button class="btn btn-outline" @onclick="PrevStep">Voltar</button>
+                }
+                else
+                {
+                    <div></div>
+                }
+
+                @if (currentStep < 3)
+                {
+                    <button class="btn btn-primary" @onclick="NextStep">Próximo</button>
+                }
+                else
+                {
+                    <SubmitButton Type="button" IsSubmitting="@submitting"
+                                  BusyText="Salvando..." OnClick="FinishWizard">
+                        Concluir e começar!
+                    </SubmitButton>
+                }
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    private UpdateProfileRequest model = new();
+    private List<string> selectedSkills = [];
+    private int currentStep = 1;
+    private bool loading = true;
+    private bool submitting;
+    private string? errorMessage;
+
+    private string BioHint
+    {
+        get
+        {
+            var len = model.Bio?.Length ?? 0;
+            if (len == 0) return $"Mínimo de {UpdateProfileRequest.BioMinLength} caracteres.";
+            if (len < UpdateProfileRequest.BioMinLength)
+                return $"Faltam {UpdateProfileRequest.BioMinLength - len} caracteres.";
+            return "Pronto para o próximo passo.";
+        }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var profile = await Api.GetProfileAsync();
+            if (profile is not null)
+            {
+                if (IsComplete(profile))
+                {
+                    Navigation.NavigateTo("/");
+                    return;
+                }
+                model.FullName = profile.FullName;
+                model.Title = profile.Title == "Novo Freelancer" ? "" : profile.Title;
+                model.Bio = profile.Bio;
+                model.HourlyRate = profile.HourlyRate;
+                model.PortfolioUrl = profile.PortfolioUrl;
+                selectedSkills = profile.Skills.ToList();
+            }
+        }
+        catch
+        {
+            errorMessage = "Não foi possível carregar seu perfil. Recarregue a página ou tente novamente em alguns minutos.";
+        }
+        finally
+        {
+            loading = false;
+        }
+    }
+
+    private void NextStep()
+    {
+        errorMessage = null;
+        if (currentStep == 1)
+        {
+            if (string.IsNullOrWhiteSpace(model.Title))
+            { errorMessage = "Preencha seu título profissional."; return; }
+            if (string.IsNullOrWhiteSpace(model.Bio))
+            { errorMessage = "Escreva algo sobre você."; return; }
+            if (model.Bio!.Length < UpdateProfileRequest.BioMinLength)
+            { errorMessage = $"Sua bio precisa ter pelo menos {UpdateProfileRequest.BioMinLength} caracteres."; return; }
+        }
+        else if (currentStep == 2 && selectedSkills.Count == 0)
+        {
+            errorMessage = "Selecione ao menos 1 habilidade.";
+            return;
+        }
+        currentStep++;
+    }
+
+    private void PrevStep() => currentStep--;
+
+    private async Task FinishWizard()
+    {
+        submitting = true;
+        errorMessage = null;
+        model.Skills = selectedSkills;
+
+        // "" → null nos opcionais para não colidir com validação MinLength no backend.
+        model.Title = NullIfBlank(model.Title);
+        model.Bio = NullIfBlank(model.Bio);
+        model.PortfolioUrl = NullIfBlank(model.PortfolioUrl);
+
+        var result = await Api.UpdateProfileAsync(model);
+        if (result is not null)
+        {
+            State.MarkProfileComplete();
+            Navigation.NavigateTo("/");
+        }
+        else
+            errorMessage = "Erro ao salvar perfil. Tente novamente.";
+        submitting = false;
+    }
+
+    private static string? NullIfBlank(string? value)
+        => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+
+    private static bool IsComplete(UserProfileDto p) =>
+        !string.IsNullOrWhiteSpace(p.Title)
+        && p.Title != "Novo Freelancer"
+        && !string.IsNullOrWhiteSpace(p.Bio)
+        && p.Skills.Count > 0;
+
+    private static string GetStepLabel(int step) => step switch
+    {
+        1 => "Apresentação",
+        2 => "Habilidades",
+        3 => "Detalhes",
+        _ => ""
+    };
+}

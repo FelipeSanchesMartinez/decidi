@@ -1,0 +1,60 @@
+@* Badge consolidado para os 3 status do marketplace: Project, Proposal, Milestone.
+   Defina exatamente UMA das propriedades. Centraliza label PT e variante de cor. *@
+
+@if (label is not null)
+{
+    <span class="badge @cssClass">@label</span>
+}
+
+@code {
+    [Parameter] public ProjectStatus? Project { get; set; }
+    [Parameter] public ProposalStatus? Proposal { get; set; }
+    [Parameter] public MilestoneStatus? Milestone { get; set; }
+
+    private string? label;
+    private string cssClass = "badge-gray";
+
+    protected override void OnParametersSet()
+    {
+        if (Project is not null)
+            (cssClass, label) = MapProject(Project.Value);
+        else if (Proposal is not null)
+            (cssClass, label) = MapProposal(Proposal.Value);
+        else if (Milestone is not null)
+            (cssClass, label) = MapMilestone(Milestone.Value);
+        else
+            label = null;
+    }
+
+    private static (string, string) MapProject(ProjectStatus s) => s switch
+    {
+        ProjectStatus.ReceivingProposals => ("badge-success", "Recebendo propostas"),
+        ProjectStatus.InNegotiation     => ("badge-info",    "Em negociação"),
+        ProjectStatus.Contracted        => ("badge-warning", "Contratado"),
+        ProjectStatus.InProgress        => ("badge-warning", "Em execução"),
+        ProjectStatus.Completed         => ("badge-primary", "Concluído"),
+        ProjectStatus.Cancelled         => ("badge-danger",  "Cancelado"),
+        ProjectStatus.Draft             => ("badge-gray",    "Rascunho"),
+        _ => ("badge-gray", s.ToString())
+    };
+
+    private static (string, string) MapProposal(ProposalStatus s) => s switch
+    {
+        ProposalStatus.Pending           => ("badge-primary", "Pendente"),
+        ProposalStatus.Accepted          => ("badge-success", "Aceita"),
+        ProposalStatus.Rejected          => ("badge-danger",  "Rejeitada"),
+        ProposalStatus.Withdrawn         => ("badge-gray",    "Retirada"),
+        ProposalStatus.ClosedByContract  => ("badge-info",    "Encerrada por contratação"),
+        _ => ("badge-gray", s.ToString())
+    };
+
+    private static (string, string) MapMilestone(MilestoneStatus s) => s switch
+    {
+        MilestoneStatus.Pending     => ("badge-gray",    "Pendente"),
+        MilestoneStatus.InProgress  => ("badge-primary", "Em Progresso"),
+        MilestoneStatus.Submitted   => ("badge-warning", "Entregue"),
+        MilestoneStatus.Approved    => ("badge-success", "Aprovado"),
+        MilestoneStatus.Paid        => ("badge-success", "Pago"),
+        _ => ("badge-gray", s.ToString())
+    };
+}

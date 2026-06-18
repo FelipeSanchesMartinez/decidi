@@ -1,0 +1,30 @@
+@* Contador de caracteres para textareas/inputs.
+   Cores: cinza (vazio), vermelho (abaixo do mínimo), âmbar (>=90% do máximo), gray-500 (ok). *@
+
+<div class="char-counter @StateClass" aria-live="polite">
+    <span>@Length / @Max</span>
+    @if (!string.IsNullOrEmpty(Hint))
+    {
+        <span class="char-counter-hint">@Hint</span>
+    }
+</div>
+
+@code {
+    [Parameter] public string? Value { get; set; }
+    [Parameter] public int Min { get; set; }
+    [Parameter, EditorRequired] public int Max { get; set; }
+    [Parameter] public string? Hint { get; set; }
+
+    private int Length => Value?.Length ?? 0;
+
+    private string StateClass
+    {
+        get
+        {
+            if (Length == 0) return "is-empty";
+            if (Min > 0 && Length < Min) return "is-below-min";
+            if (Length >= Max * 0.9) return "is-near-max";
+            return "is-ok";
+        }
+    }
+}

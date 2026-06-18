@@ -1,0 +1,9 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Decidi.API/Decidi.API.csproj" />
+    <Project Path="src/Decidi.Application/Decidi.Application.csproj" />
+    <Project Path="src/Decidi.Domain/Decidi.Domain.csproj" />
+    <Project Path="src/Decidi.Infrastructure/Decidi.Infrastructure.csproj" />
+    <Project Path="src/Decidi.Web/Decidi.Web.csproj" />
+  </Folder>
+</Solution>
