@@ -61,6 +61,20 @@
             <ValidationMessage For="@(() => Model.CoverLetter)" />
             <span class="form-hint">Dica: propostas personalizadas para o projeto têm 3x mais chance de serem aceitas.</span>
         </div>
+
+        <div class="info-callout">
+            <div class="info-callout-icon" aria-hidden="true">💰</div>
+            <div class="info-callout-body">
+                <strong>Como você vai receber</strong>
+                <p>
+                    O valor não vem todo de uma vez. Se sua proposta for aceita, o cliente
+                    divide o projeto em <strong>etapas (milestones)</strong> com valor e prazo
+                    próprios. Cada etapa é paga quando você entrega e ele aprova — protege os
+                    dois lados contra calote e abandono.
+                </p>
+            </div>
+        </div>
+
         <SubmitButton IsSubmitting="@IsSubmitting" Variant="btn-primary" CssClass="btn-lg"
                       BusyText="Enviando...">
             Enviar Proposta

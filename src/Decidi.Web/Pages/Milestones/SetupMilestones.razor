@@ -45,13 +45,36 @@
     {
         <header style="margin-bottom:1.5rem">
             <a href="@($"/projects/{ProjectId}")" class="text-sm" style="color:var(--gray-500);text-decoration:none">← Voltar ao projeto</a>
-            <h1 style="font-size:1.6rem;margin:0.5rem 0 0.25rem">Configurar etapas de pagamento</h1>
-            <p class="text-muted" style="margin:0">
+            <h1 style="font-size:1.6rem;margin:0.5rem 0 0.5rem">Configurar etapas de pagamento</h1>
+            <p class="text-muted" style="margin:0 0 1.25rem">
                 Você contratou <strong>@project.AcceptedFreelancerName</strong> por
                 <strong>R$ @acceptedProposal.Amount.ToString("N2")</strong> em
-                <strong>@acceptedProposal.DeliveryDays dias</strong>. Divida em etapas para
-                liberar pagamentos só após cada entrega aprovada — protege os dois lados.
+                <strong>@acceptedProposal.DeliveryDays dias</strong>.
             </p>
+
+            @* Explainer didático: tira a dúvida "o que é milestone afinal?" *@
+            <div class="ms-explainer">
+                <strong>O que é uma "etapa" (milestone)?</strong>
+                <p>
+                    Em vez de pagar tudo de uma vez, você divide o projeto em pedaços. Cada
+                    etapa tem um valor, um prazo e uma entrega esperada. O pagamento de cada
+                    etapa só é liberado quando você aprovar o que foi entregue.
+                </p>
+                <ul class="ms-explainer-steps">
+                    <li><span class="ms-explainer-num">1</span>
+                        <span><strong>Você divide</strong> o valor total em etapas (ou deixa em uma única).</span></li>
+                    <li><span class="ms-explainer-num">2</span>
+                        <span><strong>O profissional trabalha</strong> em cada etapa e envia para aprovação.</span></li>
+                    <li><span class="ms-explainer-num">3</span>
+                        <span><strong>Você aprova ou pede ajuste</strong> antes de liberar o pagamento.</span></li>
+                    <li><span class="ms-explainer-num">4</span>
+                        <span><strong>O valor é liberado</strong> e segue para a próxima etapa.</span></li>
+                </ul>
+                <p class="ms-explainer-conclusion">
+                    Resultado: <strong>você não paga adiantado</strong> e o profissional tem
+                    <strong>garantia de receber</strong> por cada parte entregue.
+                </p>
+            </div>
         </header>
 
         @if (currentStep == 1)

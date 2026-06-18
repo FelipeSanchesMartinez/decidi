@@ -683,6 +683,148 @@ select.form-control { appearance: auto; }
 
 /* ── Milestones ──────────────────────────────────────────────────── */
 /* =====================================================================
+   INFO CALLOUT — caixa contextual (proposta, formulários etc.)
+   ===================================================================== */
+.info-callout {
+    display: flex; gap: 0.9rem;
+    padding: 1rem 1.2rem;
+    background: var(--gradient-subtle);
+    border: 1px solid rgba(24,167,163,0.25);
+    border-radius: var(--radius-card);
+    margin: 1rem 0 1.25rem;
+}
+.info-callout-icon {
+    font-size: 1.4rem; line-height: 1; flex-shrink: 0;
+    margin-top: 2px;
+}
+.info-callout-body { flex: 1; }
+.info-callout-body strong {
+    display: block;
+    font-family: var(--font-display);
+    font-size: 0.95rem;
+    color: var(--gray-900);
+    margin-bottom: 0.35rem;
+}
+.info-callout-body p {
+    margin: 0;
+    font-size: 0.88rem;
+    line-height: 1.55;
+    color: var(--gray-700);
+}
+
+/* =====================================================================
+   EXPLAINER DIDÁTICO (SetupMilestones header + ProjectMilestones details)
+   ===================================================================== */
+.ms-explainer {
+    background: var(--off-white);
+    border: 1px solid var(--gray-100);
+    border-radius: var(--radius-card);
+    padding: 1.25rem 1.4rem;
+    margin-bottom: 0.5rem;
+}
+.ms-explainer > strong {
+    display: block;
+    font-family: var(--font-display);
+    font-size: 1rem;
+    color: var(--gray-900);
+    margin-bottom: 0.5rem;
+}
+.ms-explainer > p {
+    margin: 0 0 0.85rem;
+    font-size: 0.9rem;
+    line-height: 1.55;
+    color: var(--gray-700);
+}
+.ms-explainer-steps {
+    list-style: none;
+    margin: 0 0 0.85rem;
+    padding: 0;
+    display: flex; flex-direction: column;
+    gap: 0.55rem;
+}
+.ms-explainer-steps li {
+    display: flex; gap: 0.7rem; align-items: flex-start;
+    font-size: 0.88rem;
+    line-height: 1.5;
+    color: var(--gray-700);
+}
+.ms-explainer-num {
+    flex-shrink: 0;
+    width: 22px; height: 22px;
+    border-radius: 50%;
+    background: var(--gradient);
+    color: var(--white);
+    font-family: var(--font-display);
+    font-weight: 800;
+    font-size: 0.78rem;
+    display: flex; align-items: center; justify-content: center;
+}
+.ms-explainer-conclusion {
+    margin: 0;
+    padding: 0.7rem 0.9rem;
+    background: var(--white);
+    border-left: 3px solid var(--brand-teal);
+    border-radius: 0 var(--radius-md) var(--radius-md) 0;
+    font-size: 0.88rem;
+    color: var(--gray-700);
+    line-height: 1.5;
+}
+
+/* Versão accordion na lista de milestones existente */
+.ms-status-help {
+    background: var(--off-white);
+    border: 1px solid var(--gray-100);
+    border-radius: var(--radius-card);
+    margin-bottom: 1.25rem;
+}
+.ms-status-help summary {
+    list-style: none;
+    padding: 0.85rem 1.25rem;
+    cursor: pointer;
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: 0.92rem;
+    color: var(--gray-900);
+    display: flex; justify-content: space-between; align-items: center;
+}
+.ms-status-help summary::-webkit-details-marker { display: none; }
+.ms-status-help summary::after {
+    content: '+';
+    font-size: 1.3rem;
+    color: var(--brand-teal);
+    line-height: 1;
+}
+.ms-status-help[open] summary::after { content: '−'; }
+.ms-status-help-body { padding: 0 1.25rem 1.1rem; }
+.ms-status-help-body p {
+    margin: 0 0 0.85rem;
+    font-size: 0.9rem;
+    color: var(--gray-700);
+    line-height: 1.55;
+}
+.ms-status-help-list {
+    list-style: none;
+    margin: 0; padding: 0;
+    display: flex; flex-direction: column;
+    gap: 0.6rem;
+}
+.ms-status-help-list li {
+    display: flex; gap: 0.7rem; align-items: flex-start;
+    font-size: 0.88rem;
+    color: var(--gray-700);
+    line-height: 1.5;
+}
+.ms-status-help-list .badge {
+    flex-shrink: 0;
+    margin-top: 1px;
+}
+.ms-status-help-list em {
+    font-style: normal;
+    color: var(--brand-teal);
+    font-weight: 600;
+}
+
+/* =====================================================================
    WIZARD DE CONFIGURAÇÃO DE ETAPAS (SetupMilestones)
    ===================================================================== */
 .ms-wizard-step { display: flex; flex-direction: column; }

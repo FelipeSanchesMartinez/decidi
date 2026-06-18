@@ -117,6 +117,39 @@
     }
     else
     {
+        <details class="ms-status-help">
+            <summary>Como funcionam os status de cada etapa?</summary>
+            <div class="ms-status-help-body">
+                <p>
+                    Cada etapa passa por uma sequência. Mudanças de status são feitas pelo
+                    profissional (no andamento do trabalho) e pelo cliente (na aprovação e
+                    no pagamento):
+                </p>
+                <ul class="ms-status-help-list">
+                    <li>
+                        <span class="badge badge-gray">Pendente</span>
+                        Etapa criada, ainda não começou. <em>Profissional</em> inicia quando puder.
+                    </li>
+                    <li>
+                        <span class="badge badge-primary">Em Progresso</span>
+                        Profissional está trabalhando na entrega.
+                    </li>
+                    <li>
+                        <span class="badge badge-warning">Entregue</span>
+                        Profissional enviou para aprovação. <em>Cliente</em> revisa e aprova ou pede ajuste.
+                    </li>
+                    <li>
+                        <span class="badge badge-success">Aprovado</span>
+                        Cliente aprovou. Falta confirmar o pagamento.
+                    </li>
+                    <li>
+                        <span class="badge badge-success">Pago</span>
+                        Pagamento confirmado, etapa finalizada.
+                    </li>
+                </ul>
+            </div>
+        </details>
+
         @foreach (var ms in milestones.OrderBy(m => m.Order))
         {
             <div class="milestone-item">
