@@ -1,0 +1,84 @@
+@* Formulário para freelancer enviar proposta com preview do valor líquido recebido
+   (descontando comissão da plataforma e taxa fixa). *@
+
+<div class="card" style="margin-top:2rem;padding:2rem;border-left:4px solid var(--brand-teal)">
+    <h2 style="font-size:1.3rem;margin-bottom:0.25rem">Enviar Proposta</h2>
+    <p class="text-muted text-sm" style="margin-bottom:1.25rem">Descreva sua abordagem e condições para este projeto.</p>
+
+    @if (!string.IsNullOrEmpty(ErrorMessage))
+    {
+        <div class="alert alert-danger">@ErrorMessage</div>
+    }
+
+    <EditForm Model="Model" OnValidSubmit="HandleSubmit" FormName="proposal">
+        <DataAnnotationsValidator />
+        <div class="form-row">
+            <div class="form-group" style="flex:1">
+                <label>Valor da proposta (R$) <span style="color:var(--error)">*</span></label>
+                <InputNumber class="form-control" @bind-Value="Model.Amount" inputmode="decimal" />
+                <ValidationMessage For="@(() => Model.Amount)" />
+                @if (Model.Amount > 0)
+                {
+                    var commissionAmount = Model.Amount * (CommissionPct / 100m);
+                    var net = Math.Max(0, Model.Amount - commissionAmount - FreelancerFee);
+                    <div class="net-value-calc">
+                        <div class="net-row">
+                            <span>Valor bruto</span>
+                            <span>R$ @Model.Amount.ToString("N2")</span>
+                        </div>
+                        <div class="net-row deduction">
+                            <span>Taxa plataforma (@CommissionPct.ToString("0.##")%)</span>
+                            <span>- R$ @commissionAmount.ToString("N2")</span>
+                        </div>
+                        <div class="net-row deduction">
+                            <span>Taxa fixa</span>
+                            <span>- R$ @FreelancerFee.ToString("N2")</span>
+                        </div>
+                        <div class="net-row net-total">
+                            <span>Você recebe</span>
+                            <span>R$ @net.ToString("N2")</span>
+                        </div>
+                    </div>
+                }
+                else
+                {
+                    <span class="form-hint">Quanto você cobraria para executar este projeto.</span>
+                }
+            </div>
+            <div class="form-group" style="flex:1">
+                <label>Prazo de entrega (dias) <span style="color:var(--error)">*</span></label>
+                <InputNumber class="form-control" @bind-Value="Model.DeliveryDays" inputmode="numeric" />
+                <ValidationMessage For="@(() => Model.DeliveryDays)" />
+                <span class="form-hint">Dias úteis estimados para conclusão.</span>
+            </div>
+        </div>
+        <div class="form-group">
+            <label>Carta de apresentação <span style="color:var(--error)">*</span></label>
+            <InputTextArea class="form-control" @bind-Value="Model.CoverLetter" rows="5"
+                           maxlength="3000"
+                           placeholder="Apresente-se, destaque sua experiência relevante e como pretende executar o projeto..."
+                           autocapitalize="sentences" autocorrect="on" />
+            <ValidationMessage For="@(() => Model.CoverLetter)" />
+            <span class="form-hint">Dica: propostas personalizadas para o projeto têm 3x mais chance de serem aceitas.</span>
+        </div>
+        <SubmitButton IsSubmitting="@IsSubmitting" Variant="btn-primary" CssClass="btn-lg"
+                      BusyText="Enviando...">
+            Enviar Proposta
+        </SubmitButton>
+        <p class="text-sm text-muted" style="margin-top:0.75rem">
+            Ao enviar, a taxa de <strong>@CommissionPct.ToString("0.##")% + R$ @FreelancerFee.ToString("N2")</strong>
+            será aplicada apenas se sua proposta for aceita e o pagamento for realizado.
+        </p>
+    </EditForm>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public CreateProposalRequest Model { get; set; } = default!;
+    [Parameter] public decimal CommissionPct { get; set; }
+    [Parameter] public decimal FreelancerFee { get; set; }
+    [Parameter] public bool IsSubmitting { get; set; }
+    [Parameter] public string? ErrorMessage { get; set; }
+    [Parameter] public EventCallback OnSubmit { get; set; }
+
+    private Task HandleSubmit() => OnSubmit.InvokeAsync();
+}

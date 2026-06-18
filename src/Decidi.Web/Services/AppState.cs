@@ -30,6 +30,14 @@ public class AppState
 
     public event Action? OnChange;
 
+    /// <summary>
+    /// Disparado quando a lista de notificações foi alterada externamente (marcar como lida,
+    /// marcar todas, etc.). Componentes que mantêm cache local podem invalidá-lo aqui.
+    /// </summary>
+    public event Action? OnNotificationsChanged;
+
+    public void NotifyNotificationsChanged() => OnNotificationsChanged?.Invoke();
+
     public async Task InitializeAsync()
     {
         var auth = await _authState.GetAuthenticationStateAsync();

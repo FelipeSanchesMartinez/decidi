@@ -1,0 +1,57 @@
+@* Card individual de proposta na lista do dono do projeto.
+   Mostra checkbox de comparação quando CompareMode=true e ações Aceitar/Rejeitar apenas para Pending. *@
+
+<div class="proposal-card @(IsSelectedForCompare ? "compare-selected" : "")">
+    @if (CompareMode)
+    {
+        <label class="compare-check" @onclick:stopPropagation="true">
+            <input type="checkbox"
+                   checked="@IsSelectedForCompare"
+                   @onchange="HandleToggleCompare" />
+            Comparar
+        </label>
+    }
+    <div class="proposal-header">
+        <div class="proposal-author">
+            <Avatar Name="@Proposal.FreelancerName" Size="md" />
+            <div>
+                <a href="/freelancer/@Proposal.FreelancerId" class="proposal-name">@Proposal.FreelancerName</a>
+                @if (!string.IsNullOrEmpty(Proposal.FreelancerTitle))
+                {
+                    <div class="proposal-title-text">@Proposal.FreelancerTitle</div>
+                }
+            </div>
+        </div>
+        <div class="proposal-amount">
+            <div class="budget">R$ @Proposal.Amount.ToString("N0")</div>
+            <span class="text-sm text-muted">@Proposal.DeliveryDays dias</span>
+        </div>
+    </div>
+    <p class="proposal-letter">@Proposal.CoverLetter</p>
+    @if (Proposal.Status == ProposalStatus.Pending)
+    {
+        <div style="display:flex;gap:0.5rem;margin-top:1rem">
+            <button type="button" class="btn btn-success btn-sm" @onclick="HandleAccept">Aceitar Proposta</button>
+            <button type="button" class="btn btn-danger btn-sm" @onclick="HandleReject">Rejeitar</button>
+        </div>
+    }
+    else
+    {
+        <div style="margin-top:0.75rem">
+            <StatusBadge Proposal="@Proposal.Status" />
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired] public ProposalDto Proposal { get; set; } = default!;
+    [Parameter] public bool CompareMode { get; set; }
+    [Parameter] public bool IsSelectedForCompare { get; set; }
+    [Parameter] public EventCallback<Guid> OnToggleCompare { get; set; }
+    [Parameter] public EventCallback<(Guid id, string freelancerName)> OnAccept { get; set; }
+    [Parameter] public EventCallback<(Guid id, string freelancerName)> OnReject { get; set; }
+
+    private Task HandleToggleCompare() => OnToggleCompare.InvokeAsync(Proposal.Id);
+    private Task HandleAccept() => OnAccept.InvokeAsync((Proposal.Id, Proposal.FreelancerName));
+    private Task HandleReject() => OnReject.InvokeAsync((Proposal.Id, Proposal.FreelancerName));
+}

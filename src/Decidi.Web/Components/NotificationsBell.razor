@@ -69,6 +69,7 @@
     protected override async Task OnInitializedAsync()
     {
         State.OnChange += OnStateChanged;
+        State.OnNotificationsChanged += OnNotificationsExternallyChanged;
         await ReconnectHubAsync();
         authChangedHandler = task =>
         {
@@ -82,6 +83,16 @@
     }
 
     private void OnStateChanged() => InvokeAsync(StateHasChanged);
+
+    /// <summary>
+    /// Quando outra parte do app (ex: página /notifications) altera a lista,
+    /// invalidamos o cache local para forçar refetch ao reabrir o dropdown.
+    /// </summary>
+    private void OnNotificationsExternallyChanged()
+    {
+        notifications = null;
+        InvokeAsync(StateHasChanged);
+    }
 
     private async Task ToggleDropdown()
     {
@@ -190,6 +201,7 @@
     public async ValueTask DisposeAsync()
     {
         State.OnChange -= OnStateChanged;
+        State.OnNotificationsChanged -= OnNotificationsExternallyChanged;
         if (authChangedHandler is not null)
         {
             AuthState.AuthenticationStateChanged -= authChangedHandler;

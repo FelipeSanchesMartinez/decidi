@@ -1,0 +1,122 @@
+@* Comparação lado-a-lado de propostas selecionadas. Renderiza cards (mobile) e
+   tabela (desktop) — CSS controla qual aparece via breakpoints. Destaca "melhor"
+   valor e "menor" prazo do conjunto. *@
+
+@if (Proposals.Count >= 2)
+{
+    var minAmount = Proposals.Min(x => x.Amount);
+    var minDelivery = Proposals.Min(x => x.DeliveryDays);
+
+    @* === Mobile: cards verticais === *@
+    <div class="compare-cards">
+        @foreach (var p in Proposals)
+        {
+            var costPerDay = p.DeliveryDays > 0 ? p.Amount / p.DeliveryDays : 0;
+            <div class="compare-card">
+                <header>
+                    <Avatar Name="@p.FreelancerName" Size="sm" />
+                    <a href="/freelancer/@p.FreelancerId" class="proposal-name">@p.FreelancerName</a>
+                </header>
+                <dl>
+                    <dt>Valor</dt>
+                    <dd class="@(p.Amount == minAmount ? "compare-best" : "")">R$ @p.Amount.ToString("N0")</dd>
+                    <dt>Prazo</dt>
+                    <dd class="@(p.DeliveryDays == minDelivery ? "compare-best" : "")">@p.DeliveryDays dias</dd>
+                    <dt>Custo/dia</dt>
+                    <dd>R$ @costPerDay.ToString("N0")/dia</dd>
+                    <dt>Título</dt>
+                    <dd>@(p.FreelancerTitle ?? "—")</dd>
+                    <dt>Apresentação</dt>
+                    <dd class="compare-letter">@p.CoverLetter</dd>
+                </dl>
+                @if (p.Status == ProposalStatus.Pending)
+                {
+                    <button type="button" class="btn btn-success btn-sm w-full"
+                            @onclick="() => HandleAccept(p)">
+                        Aceitar proposta
+                    </button>
+                }
+            </div>
+        }
+    </div>
+
+    @* === Desktop: tabela === *@
+    <div class="compare-table-wrap">
+        <table class="compare-table">
+            <thead>
+                <tr>
+                    <th></th>
+                    @foreach (var p in Proposals)
+                    {
+                        <th>
+                            <div class="compare-avatar">
+                                <Avatar Name="@p.FreelancerName" Size="sm" />
+                                <a href="/freelancer/@p.FreelancerId" class="proposal-name">@p.FreelancerName</a>
+                            </div>
+                        </th>
+                    }
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td class="compare-label">Valor</td>
+                    @foreach (var p in Proposals)
+                    {
+                        <td class="@(p.Amount == minAmount ? "compare-best" : "")">R$ @p.Amount.ToString("N0")</td>
+                    }
+                </tr>
+                <tr>
+                    <td class="compare-label">Prazo</td>
+                    @foreach (var p in Proposals)
+                    {
+                        <td class="@(p.DeliveryDays == minDelivery ? "compare-best" : "")">@p.DeliveryDays dias</td>
+                    }
+                </tr>
+                <tr>
+                    <td class="compare-label">Custo/dia</td>
+                    @foreach (var p in Proposals)
+                    {
+                        var costPerDay = p.DeliveryDays > 0 ? p.Amount / p.DeliveryDays : 0;
+                        <td>R$ @costPerDay.ToString("N0")/dia</td>
+                    }
+                </tr>
+                <tr>
+                    <td class="compare-label">Título</td>
+                    @foreach (var p in Proposals)
+                    {
+                        <td>@(p.FreelancerTitle ?? "—")</td>
+                    }
+                </tr>
+                <tr>
+                    <td class="compare-label">Apresentação</td>
+                    @foreach (var p in Proposals)
+                    {
+                        <td class="compare-letter">@p.CoverLetter</td>
+                    }
+                </tr>
+                <tr>
+                    <td class="compare-label">Ações</td>
+                    @foreach (var p in Proposals)
+                    {
+                        <td>
+                            @if (p.Status == ProposalStatus.Pending)
+                            {
+                                <button type="button" class="btn btn-success btn-sm"
+                                        @onclick="() => HandleAccept(p)">
+                                    Aceitar
+                                </button>
+                            }
+                        </td>
+                    }
+                </tr>
+            </tbody>
+        </table>
+    </div>
+}
+
+@code {
+    [Parameter, EditorRequired] public IReadOnlyList<ProposalDto> Proposals { get; set; } = [];
+    [Parameter] public EventCallback<(Guid id, string freelancerName)> OnAccept { get; set; }
+
+    private Task HandleAccept(ProposalDto p) => OnAccept.InvokeAsync((p.Id, p.FreelancerName));
+}
