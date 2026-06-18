@@ -682,6 +682,185 @@ select.form-control { appearance: auto; }
 }
 
 /* ── Milestones ──────────────────────────────────────────────────── */
+/* =====================================================================
+   WIZARD DE CONFIGURAÇÃO DE ETAPAS (SetupMilestones)
+   ===================================================================== */
+.ms-wizard-step { display: flex; flex-direction: column; }
+.ms-wizard-title {
+    font-family: var(--font-display);
+    font-size: 1.2rem; font-weight: 800;
+    margin: 0 0 0.4rem;
+    color: var(--gray-900);
+}
+.ms-wizard-help {
+    font-size: 0.92rem;
+    color: var(--gray-500);
+    margin: 0 0 1.5rem;
+    line-height: 1.6;
+}
+
+/* ── Step 1: cards de template ──────────────────────────────── */
+.ms-template-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 0.85rem;
+    margin-bottom: 1.5rem;
+}
+.ms-template-card {
+    display: flex; flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+    padding: 1.4rem;
+    text-align: left;
+    background: var(--white);
+    border: 1.5px solid var(--gray-100);
+    border-radius: var(--radius-card);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    font-family: var(--font-body);
+}
+.ms-template-card:hover {
+    border-color: var(--brand-teal);
+    box-shadow: var(--shadow-sm);
+    transform: translateY(-2px);
+}
+.ms-template-icon { font-size: 1.6rem; line-height: 1; }
+.ms-template-name {
+    font-family: var(--font-display);
+    font-weight: 800; font-size: 1rem;
+    color: var(--gray-900);
+}
+.ms-template-desc {
+    font-size: 0.85rem;
+    color: var(--gray-600);
+    line-height: 1.5;
+}
+.ms-template-split {
+    margin-top: auto;
+    padding-top: 0.5rem;
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: var(--brand-teal);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+/* ── Step 2: lista editável ────────────────────────────────── */
+.ms-stage-list { display: flex; flex-direction: column; gap: 0.85rem; margin-bottom: 1rem; }
+.ms-stage-card {
+    background: var(--white);
+    border: 1px solid var(--gray-100);
+    border-radius: var(--radius-card);
+    padding: 1.25rem 1.4rem;
+}
+.ms-stage-head {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 0.8rem;
+}
+.ms-stage-num {
+    font-family: var(--font-display);
+    font-weight: 800; font-size: 0.95rem;
+    color: var(--brand-teal);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+.ms-stage-remove {
+    background: var(--gray-50);
+    border: none;
+    width: 28px; height: 28px;
+    border-radius: 50%;
+    cursor: pointer;
+    font-size: 1.1rem;
+    line-height: 1;
+    color: var(--gray-500);
+    transition: all var(--transition-fast);
+}
+.ms-stage-remove:hover {
+    background: var(--error);
+    color: var(--white);
+}
+.ms-add-stage {
+    width: 100%;
+    padding: 0.9rem 1rem;
+    background: var(--white);
+    border: 1.5px dashed var(--gray-200);
+    border-radius: var(--radius-card);
+    color: var(--gray-600);
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    margin-bottom: 1.5rem;
+}
+.ms-add-stage:hover {
+    border-color: var(--brand-teal);
+    color: var(--brand-teal);
+    background: var(--gradient-subtle);
+}
+
+/* ── Sumário de soma vs total ──────────────────────────────── */
+.ms-summary {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.75rem 1.5rem;
+    padding: 1rem 1.4rem;
+    background: var(--off-white);
+    border: 1.5px solid var(--gray-100);
+    border-radius: var(--radius-card);
+    align-items: center;
+}
+.ms-summary.valid {
+    background: rgba(16,185,129,0.06);
+    border-color: var(--success);
+}
+.ms-summary.invalid {
+    background: rgba(240,68,56,0.05);
+    border-color: var(--error);
+}
+.ms-summary-label {
+    display: block;
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--gray-500);
+}
+.ms-summary-value {
+    font-family: var(--font-display);
+    font-size: 1.1rem;
+    color: var(--gray-900);
+    font-variant-numeric: tabular-nums;
+}
+.ms-summary-status {
+    grid-column: 1 / -1;
+    font-size: 0.88rem;
+    font-weight: 600;
+}
+.ms-summary.valid .ms-summary-status { color: var(--success); }
+.ms-summary.invalid .ms-summary-status { color: var(--error); }
+
+/* ── Rodapé do wizard ──────────────────────────────────────── */
+.ms-wizard-footer {
+    display: flex; justify-content: space-between; gap: 0.6rem;
+    margin-top: 1.5rem;
+    flex-wrap: wrap;
+}
+.ms-wizard-footer .btn { flex: 0 1 auto; }
+@media (max-width: 520px) {
+    .ms-wizard-footer .btn { flex: 1; }
+}
+.btn-ghost-dark {
+    background: transparent;
+    color: var(--gray-500);
+    border: none;
+    padding: 0.5rem 1rem;
+    text-decoration: underline;
+    cursor: pointer;
+    font-size: 0.88rem;
+}
+.btn-ghost-dark:hover { color: var(--gray-900); }
+
 .milestone-item {
     display: flex; align-items: center; gap: 1rem; padding: 1.25rem;
     border: 1px solid var(--gray-100); border-radius: var(--radius-lg);

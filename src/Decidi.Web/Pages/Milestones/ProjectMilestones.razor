@@ -82,15 +82,38 @@
     }
     else if (milestones is null || !milestones.Any())
     {
-        <EmptyState Title="Nenhum milestone criado"
-                    Message="@(isClient ? "Crie milestones para organizar as entregas e pagamentos do projeto." : "O cliente ainda não criou milestones para este projeto.")">
-            <Icon>
-                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--gray-300)" stroke-width="1.5">
-                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
-                    <polyline points="22 4 12 14.01 9 11.01"/>
-                </svg>
-            </Icon>
-        </EmptyState>
+        if (isClient)
+        {
+            <EmptyState Title="Nenhuma etapa criada ainda"
+                        Message="Use o assistente para dividir o pagamento em etapas. Cada milestone só é paga quando você aprova a entrega — protege os dois lados.">
+                <Icon>
+                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--gray-300)" stroke-width="1.5">
+                        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                        <polyline points="22 4 12 14.01 9 11.01"/>
+                    </svg>
+                </Icon>
+                <CallToAction>
+                    <a class="btn btn-primary" href="@($"/projects/{ProjectId}/milestones/setup")">
+                        Abrir assistente de etapas
+                    </a>
+                    <button type="button" class="btn btn-outline" @onclick="() => showForm = true">
+                        Adicionar manualmente
+                    </button>
+                </CallToAction>
+            </EmptyState>
+        }
+        else
+        {
+            <EmptyState Title="Nenhuma etapa criada ainda"
+                        Message="O cliente ainda não criou etapas de pagamento para este projeto.">
+                <Icon>
+                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--gray-300)" stroke-width="1.5">
+                        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                        <polyline points="22 4 12 14.01 9 11.01"/>
+                    </svg>
+                </Icon>
+            </EmptyState>
+        }
     }
     else
     {

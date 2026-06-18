@@ -500,9 +500,12 @@
 
     private async Task ConfirmAcceptProposal()
     {
-        await Api.AcceptProposalAsync(pendingProposalId);
-        project = await Api.GetProjectAsync(Id);
-        proposals = await Api.GetProjectProposalsAsync(Id);
+        var result = await Api.AcceptProposalAsync(pendingProposalId);
+        if (result is null) return; // handler global já toastou o erro
+
+        // Próximo passo natural: configurar as etapas de pagamento. O wizard
+        // pula automaticamente se o projeto já tiver milestones criadas.
+        Navigation.NavigateTo($"/projects/{Id}/milestones/setup");
     }
 
     private async Task ConfirmRejectProposal()
