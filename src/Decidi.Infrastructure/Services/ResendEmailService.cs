@@ -23,103 +23,24 @@ public sealed class ResendEmailService : IEmailService
 
     public async Task SendEmailConfirmationAsync(string toEmail, string userName, string confirmationLink)
     {
-        var subject = "Confirme seu e-mail - decidi";
-        var html = $"""
-            <div style="background-color:#f5f5f5;padding:32px 0;width:100%">
-                <div style="font-family:'Nunito Sans',Inter,Arial,sans-serif;max-width:600px;margin:0 auto;padding:40px 32px;background-color:#ffffff;border-radius:12px">
-                    <div style="text-align:center;margin-bottom:32px">
-                        <h1 style="color:#0B6B4F;font-size:28px;margin:0">decidi</h1>
-                    </div>
-                    <h2 style="color:#1a1a1a;font-size:22px">Olá, {userName}!</h2>
-                    <p style="color:#333333;font-size:16px;line-height:1.6">
-                        Bem-vindo à decidi! Para ativar sua conta, confirme seu e-mail clicando no botão abaixo:
-                    </p>
-                    <div style="text-align:center;margin:32px 0">
-                        <a href="{confirmationLink}"
-                           style="background:linear-gradient(135deg,#0B6B4F,#1E56F2);color:#ffffff;text-decoration:none;padding:14px 32px;border-radius:8px;font-size:16px;font-weight:700;display:inline-block">
-                            Confirmar E-mail
-                        </a>
-                    </div>
-                    <p style="color:#666666;font-size:14px;line-height:1.5">
-                        Se você não criou uma conta na decidi, ignore este e-mail.
-                    </p>
-                    <hr style="border:none;border-top:1px solid #eeeeee;margin:32px 0" />
-                    <p style="color:#999999;font-size:12px;text-align:center">
-                        decidi — A plataforma para quem decide fazer acontecer.
-                    </p>
-                </div>
-            </div>
-            """;
-
-        await SendAsync(toEmail, subject, html);
+        var built = EmailTemplates.EmailConfirmation(userName, confirmationLink);
+        await SendAsync(toEmail, "Confirme seu e-mail · decidi", built.Html, built.Text);
     }
 
     public async Task SendPasswordResetAsync(string toEmail, string userName, string resetLink)
     {
-        var subject = "Recuperar senha - decidi";
-        var html = $"""
-            <div style="background-color:#f5f5f5;padding:32px 0;width:100%">
-                <div style="font-family:'Nunito Sans',Inter,Arial,sans-serif;max-width:600px;margin:0 auto;padding:40px 32px;background-color:#ffffff;border-radius:12px">
-                    <div style="text-align:center;margin-bottom:32px">
-                        <h1 style="color:#0B6B4F;font-size:28px;margin:0">decidi</h1>
-                    </div>
-                    <h2 style="color:#1a1a1a;font-size:22px">Olá, {userName}!</h2>
-                    <p style="color:#333333;font-size:16px;line-height:1.6">
-                        Recebemos uma solicitação para redefinir sua senha. Clique no botão abaixo para criar uma nova:
-                    </p>
-                    <div style="text-align:center;margin:32px 0">
-                        <a href="{resetLink}"
-                           style="background:linear-gradient(135deg,#0B6B4F,#1E56F2);color:#ffffff;text-decoration:none;padding:14px 32px;border-radius:8px;font-size:16px;font-weight:700;display:inline-block">
-                            Redefinir Senha
-                        </a>
-                    </div>
-                    <p style="color:#666666;font-size:14px;line-height:1.5">
-                        Este link expira em 1 hora. Se você não solicitou a redefinição, ignore este e-mail.
-                    </p>
-                    <hr style="border:none;border-top:1px solid #eeeeee;margin:32px 0" />
-                    <p style="color:#999999;font-size:12px;text-align:center">
-                        decidi — A plataforma para quem decide fazer acontecer.
-                    </p>
-                </div>
-            </div>
-            """;
-
-        await SendAsync(toEmail, subject, html);
+        var built = EmailTemplates.PasswordReset(userName, resetLink);
+        await SendAsync(toEmail, "Redefinição de senha · decidi", built.Html, built.Text);
     }
 
     public async Task SendMarketplaceEventAsync(
         string toEmail, string userName, string subject, string preview, string body, string ctaLabel, string ctaUrl)
     {
-        var html = $"""
-            <div style="background-color:#f5f5f5;padding:32px 0;width:100%">
-                <div style="font-family:'Nunito Sans',Inter,Arial,sans-serif;max-width:600px;margin:0 auto;padding:40px 32px;background-color:#ffffff;border-radius:12px">
-                    <div style="text-align:center;margin-bottom:32px">
-                        <h1 style="color:#0B6B4F;font-size:28px;margin:0">decidi</h1>
-                    </div>
-                    <h2 style="color:#1a1a1a;font-size:22px">Olá, {userName}!</h2>
-                    <p style="color:#555;font-size:15px;line-height:1.5;margin:0 0 18px 0">{preview}</p>
-                    <p style="color:#333333;font-size:16px;line-height:1.6">{body}</p>
-                    <div style="text-align:center;margin:32px 0">
-                        <a href="{ctaUrl}"
-                           style="background:linear-gradient(135deg,#0B6B4F,#1E56F2);color:#ffffff;text-decoration:none;padding:14px 32px;border-radius:8px;font-size:16px;font-weight:700;display:inline-block">
-                            {ctaLabel}
-                        </a>
-                    </div>
-                    <p style="color:#666666;font-size:13px;line-height:1.5">
-                        Você está recebendo este e-mail porque tem uma conta na decidi.
-                    </p>
-                    <hr style="border:none;border-top:1px solid #eeeeee;margin:32px 0" />
-                    <p style="color:#999999;font-size:12px;text-align:center">
-                        decidi — A plataforma para quem decide fazer acontecer.
-                    </p>
-                </div>
-            </div>
-            """;
-
-        await SendAsync(toEmail, subject, html);
+        var built = EmailTemplates.MarketplaceEvent(userName, preview, body, ctaLabel, ctaUrl);
+        await SendAsync(toEmail, $"{subject} · decidi", built.Html, built.Text);
     }
 
-    private async Task SendAsync(string to, string subject, string html)
+    private async Task SendAsync(string to, string subject, string html, string text)
     {
         var payload = new
         {
@@ -127,6 +48,7 @@ public sealed class ResendEmailService : IEmailService
             to = new[] { to },
             subject,
             html,
+            text, // Versão texto para clientes que não renderizam HTML e para melhorar entregabilidade.
         };
 
         for (var attempt = 1; attempt <= MaxRetries; attempt++)

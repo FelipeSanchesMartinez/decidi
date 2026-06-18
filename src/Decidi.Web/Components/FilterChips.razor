@@ -1,0 +1,38 @@
+@typeparam TValue
+
+@* Faixa horizontal de "chips" para filtros mutuamente exclusivos.
+   Recebe Options (label, value e contador opcional), valor atual e callback.
+   Não deve substituir um <select> para listas longas — é desenhado para 3-7 opções. *@
+
+<div class="filter-chips" role="group" aria-label="@AriaLabel">
+    @foreach (var option in Options)
+    {
+        var isSelected = EqualityComparer<TValue>.Default.Equals(option.Value, Value);
+        <button type="button"
+                class="filter-chip @(isSelected ? "active" : "")"
+                aria-pressed="@(isSelected ? "true" : "false")"
+                @onclick="() => Select(option.Value)">
+            <span>@option.Label</span>
+            @if (option.Count is { } count)
+            {
+                <span class="filter-chip-count">@count</span>
+            }
+        </button>
+    }
+</div>
+
+@code {
+    public record FilterOption(string Label, TValue Value, int? Count = null);
+
+    [Parameter, EditorRequired] public IReadOnlyList<FilterOption> Options { get; set; } = [];
+    [Parameter, EditorRequired] public TValue Value { get; set; } = default!;
+    [Parameter] public EventCallback<TValue> ValueChanged { get; set; }
+    [Parameter] public string AriaLabel { get; set; } = "Filtros";
+
+    private async Task Select(TValue value)
+    {
+        if (EqualityComparer<TValue>.Default.Equals(value, Value)) return;
+        Value = value;
+        await ValueChanged.InvokeAsync(value);
+    }
+}

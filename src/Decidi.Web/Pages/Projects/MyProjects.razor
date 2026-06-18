@@ -6,20 +6,20 @@
 <PageTitle>Meus Projetos - decidi</PageTitle>
 
 <div class="container" style="max-width:960px;margin:0 auto;padding:2rem 1.5rem">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.5rem">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.5rem;flex-wrap:wrap;gap:0.75rem">
         <h1 style="font-size:1.75rem;margin:0">Meus Projetos</h1>
         <a href="/projects/create" class="btn btn-primary">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
             Publicar Projeto
         </a>
     </div>
-    <p class="text-muted" style="margin-bottom:1.5rem">Gerencie seus projetos publicados, acompanhe propostas e contrate profissionais.</p>
+    <p class="text-muted" style="margin-bottom:1.25rem">Gerencie seus projetos publicados, acompanhe propostas e contrate profissionais.</p>
 
     @if (loading)
     {
         <SkeletonCard Count="4" Lines="3" />
     }
-    else if (projects is null || !projects.Any())
+    else if (allProjects.Count == 0)
     {
         <EmptyState Title="Nenhum projeto publicado"
                     Message="Publique seu primeiro projeto e comece a receber propostas.">
@@ -35,57 +35,189 @@
     }
     else
     {
-        @foreach (var project in projects)
+        <FilterChips TValue="string"
+                     Options="@statusOptions"
+                     Value="@statusFilter"
+                     ValueChanged="OnStatusChanged"
+                     AriaLabel="Filtrar por status" />
+
+        <div class="list-toolbar">
+            <input class="form-control form-control-sm list-search" type="search"
+                   placeholder="Buscar nos seus projetos..."
+                   value="@searchTerm"
+                   @oninput="OnSearchInput"
+                   autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" />
+            <select class="form-control form-control-sm list-sort" @bind="sortBy" @bind:after="SyncQueryString">
+                <option value="recent">Mais recentes</option>
+                <option value="oldest">Mais antigos</option>
+                <option value="proposals">Mais propostas</option>
+            </select>
+        </div>
+
+        @if (!filteredProjects.Any())
         {
-            <div class="list-card" @onclick="() => GoToProject(project.Id)">
-                <div class="list-card-main">
-                    <div class="list-card-header">
-                        <h3 class="list-card-title">@project.Title</h3>
-                        <StatusBadge Project="@project.Status" />
+            <EmptyState Title="Nenhum projeto com esse filtro"
+                        Message="Tente outro status ou limpe a busca.">
+                <CallToAction>
+                    <button type="button" class="btn btn-outline" @onclick="ClearFilters">Limpar filtros</button>
+                </CallToAction>
+            </EmptyState>
+        }
+        else
+        {
+            @foreach (var project in filteredProjects)
+            {
+                <div class="list-card" @onclick="() => GoToProject(project.Id)">
+                    <div class="list-card-main">
+                        <div class="list-card-header">
+                            <h3 class="list-card-title">@project.Title</h3>
+                            <StatusBadge Project="@project.Status" />
+                        </div>
+                        <p class="list-card-desc">@project.DescriptionPreview</p>
+                        <div class="list-card-meta">
+                            <span class="list-card-budget">
+                                @if (project.BudgetMin.HasValue || project.BudgetMax.HasValue)
+                                {
+                                    <text>R$ @(project.BudgetMin?.ToString("N0") ?? "?") — R$ @(project.BudgetMax?.ToString("N0") ?? "?")</text>
+                                }
+                                else
+                                {
+                                    <text>Aberto a propostas</text>
+                                }
+                            </span>
+                            <span class="list-card-meta-item">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
+                                @project.ProposalCount propostas
+                            </span>
+                            <span class="list-card-meta-item">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                                @project.CreatedAt.ToString("dd/MM/yyyy")
+                            </span>
+                        </div>
                     </div>
-                    <p class="list-card-desc">@project.DescriptionPreview</p>
-                    <div class="list-card-meta">
-                        <span class="list-card-budget">
-                            @if (project.BudgetMin.HasValue || project.BudgetMax.HasValue)
-                            {
-                                <text>R$ @(project.BudgetMin?.ToString("N0") ?? "?") — R$ @(project.BudgetMax?.ToString("N0") ?? "?")</text>
-                            }
-                            else
-                            {
-                                <text>Aberto a propostas</text>
-                            }
-                        </span>
-                        <span class="list-card-meta-item">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
-                            @project.ProposalCount propostas
-                        </span>
-                        <span class="list-card-meta-item">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-                            @project.CreatedAt.ToString("dd/MM/yyyy")
-                        </span>
+                    <div class="list-card-arrow">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--gray-300)" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
                     </div>
                 </div>
-                <div class="list-card-arrow">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--gray-300)" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
-                </div>
-            </div>
+            }
         }
     }
 </div>
 
 @code {
-    private IEnumerable<ProjectListDto>? projects;
+    // Querystring params para preservar filtros em back/forward + compartilhamento de link.
+    [SupplyParameterFromQuery(Name = "status")] public string? StatusQuery { get; set; }
+    [SupplyParameterFromQuery(Name = "q")] public string? SearchQuery { get; set; }
+    [SupplyParameterFromQuery(Name = "sort")] public string? SortQuery { get; set; }
+
+    private List<ProjectListDto> allProjects = [];
+    private List<ProjectListDto> filteredProjects = [];
     private bool loading = true;
+
+    private string statusFilter = "all";
+    private string searchTerm = string.Empty;
+    private string sortBy = "recent";
+
+    private List<FilterChips<string>.FilterOption> statusOptions = [];
 
     protected override async Task OnInitializedAsync()
     {
-        projects = await Api.GetMyProjectsAsync();
+        statusFilter = StatusQuery ?? "all";
+        searchTerm = SearchQuery ?? string.Empty;
+        sortBy = SortQuery ?? "recent";
+
+        var result = await Api.GetMyProjectsAsync();
+        allProjects = result?.ToList() ?? [];
+        BuildStatusOptions();
+        ApplyFilters();
         loading = false;
     }
 
-    private void GoToProject(Guid id)
+    private void BuildStatusOptions()
     {
-        Navigation.NavigateTo($"/projects/{id}");
+        // Contagem por bucket "lógico" — usuário pensa em fase do projeto, não em enum.
+        int CountWhere(Func<ProjectListDto, bool> predicate) => allProjects.Count(predicate);
+
+        statusOptions =
+        [
+            new("Todos", "all", allProjects.Count),
+            new("Recebendo propostas", "receiving",
+                CountWhere(p => p.Status == ProjectStatus.ReceivingProposals)),
+            new("Em negociação", "negotiation",
+                CountWhere(p => p.Status == ProjectStatus.InNegotiation)),
+            new("Em execução", "active",
+                CountWhere(p => p.Status == ProjectStatus.Contracted || p.Status == ProjectStatus.InProgress)),
+            new("Concluído", "completed",
+                CountWhere(p => p.Status == ProjectStatus.Completed)),
+            new("Cancelado", "cancelled",
+                CountWhere(p => p.Status == ProjectStatus.Cancelled)),
+        ];
     }
 
+    private void ApplyFilters()
+    {
+        IEnumerable<ProjectListDto> q = allProjects;
+
+        q = statusFilter switch
+        {
+            "receiving" => q.Where(p => p.Status == ProjectStatus.ReceivingProposals),
+            "negotiation" => q.Where(p => p.Status == ProjectStatus.InNegotiation),
+            "active" => q.Where(p => p.Status == ProjectStatus.Contracted || p.Status == ProjectStatus.InProgress),
+            "completed" => q.Where(p => p.Status == ProjectStatus.Completed),
+            "cancelled" => q.Where(p => p.Status == ProjectStatus.Cancelled),
+            _ => q
+        };
+
+        if (!string.IsNullOrWhiteSpace(searchTerm))
+        {
+            var term = searchTerm.Trim();
+            q = q.Where(p =>
+                p.Title.Contains(term, StringComparison.OrdinalIgnoreCase) ||
+                (p.DescriptionPreview?.Contains(term, StringComparison.OrdinalIgnoreCase) ?? false));
+        }
+
+        q = sortBy switch
+        {
+            "oldest" => q.OrderBy(p => p.CreatedAt),
+            "proposals" => q.OrderByDescending(p => p.ProposalCount).ThenByDescending(p => p.CreatedAt),
+            _ => q.OrderByDescending(p => p.CreatedAt)
+        };
+
+        filteredProjects = q.ToList();
+    }
+
+    private void OnStatusChanged(string value)
+    {
+        statusFilter = value;
+        SyncQueryString();
+    }
+
+    private void OnSearchInput(ChangeEventArgs e)
+    {
+        searchTerm = e.Value?.ToString() ?? string.Empty;
+        SyncQueryString();
+    }
+
+    private void SyncQueryString()
+    {
+        var qs = new Dictionary<string, object?>
+        {
+            ["status"] = statusFilter == "all" ? null : statusFilter,
+            ["q"] = string.IsNullOrWhiteSpace(searchTerm) ? null : searchTerm,
+            ["sort"] = sortBy == "recent" ? null : sortBy,
+        };
+        var uri = Navigation.GetUriWithQueryParameters(qs);
+        Navigation.NavigateTo(uri, replace: true);
+        ApplyFilters();
+    }
+
+    private void ClearFilters()
+    {
+        statusFilter = "all";
+        searchTerm = string.Empty;
+        sortBy = "recent";
+        SyncQueryString();
+    }
+
+    private void GoToProject(Guid id) => Navigation.NavigateTo($"/projects/{id}");
 }

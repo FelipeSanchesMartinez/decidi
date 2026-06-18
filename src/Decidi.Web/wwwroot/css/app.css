@@ -684,6 +684,61 @@ select.form-control { appearance: auto; }
 }
 .sidebar-link:hover { background: var(--gray-50); color: var(--brand-teal); }
 .sidebar-link.active { background: var(--gradient-subtle); color: var(--brand-teal); font-weight: 600; }
+
+/* ── Filter Chips ────────────────────────────────────────────────── */
+.filter-chips {
+    display: flex; flex-wrap: wrap; gap: 0.5rem;
+    margin-bottom: 1rem;
+}
+.filter-chip {
+    display: inline-flex; align-items: center; gap: 0.4rem;
+    padding: 0.4rem 0.85rem;
+    background: var(--white);
+    color: var(--gray-600);
+    border: 1.5px solid var(--gray-100);
+    border-radius: var(--radius-pill);
+    font-size: 0.82rem; font-weight: 600;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    font-family: var(--font-body);
+    line-height: 1.2;
+}
+.filter-chip:hover {
+    border-color: var(--brand-teal);
+    color: var(--brand-teal);
+    background: rgba(24,167,163,0.04);
+}
+.filter-chip.active {
+    background: var(--gradient);
+    color: var(--white);
+    border-color: transparent;
+    box-shadow: var(--shadow-sm);
+}
+.filter-chip-count {
+    display: inline-flex; align-items: center; justify-content: center;
+    min-width: 1.4em; padding: 0 0.4em;
+    background: var(--gray-100);
+    color: var(--gray-600);
+    border-radius: var(--radius-pill);
+    font-size: 0.7rem; font-weight: 700;
+    font-variant-numeric: tabular-nums;
+}
+.filter-chip.active .filter-chip-count {
+    background: rgba(255,255,255,0.25);
+    color: var(--white);
+}
+
+/* Toolbar de busca + sort que acompanha os chips */
+.list-toolbar {
+    display: flex; flex-wrap: wrap; gap: 0.75rem;
+    align-items: center; margin-bottom: 1rem;
+}
+.list-toolbar .list-search {
+    flex: 1 1 240px; min-width: 200px;
+}
+.list-toolbar .list-sort {
+    width: auto; flex-shrink: 0;
+}
 .page-content { flex: 1; min-width: 0; padding: 2rem 0; }
 @media (max-width: 768px) {
     .page-with-sidebar { flex-direction: column; }
