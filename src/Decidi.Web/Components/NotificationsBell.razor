@@ -50,6 +50,9 @@
                         </div>
                     </div>
                 }
+                <a class="notif-see-all" href="/notifications" @onclick="CloseDropdown" @onclick:stopPropagation="true">
+                    Ver todas as notificações
+                </a>
             }
         </div>
     }
@@ -89,6 +92,8 @@
             catch { /* handler global já toasta */ }
         }
     }
+
+    private void CloseDropdown() => showDropdown = false;
 
     private async Task MarkAllRead()
     {

@@ -214,20 +214,57 @@
 
     private const int BioPreviewMaxChars = 280;
 
-    private bool IsBioTruncatable => (profile?.Bio?.Length ?? 0) > BioPreviewMaxChars;
+    private bool IsBioTruncatable => CountGraphemes(profile?.Bio) > BioPreviewMaxChars;
 
     private string BioForDisplay
     {
         get
         {
             var bio = profile?.Bio ?? string.Empty;
-            if (bioExpanded || bio.Length <= BioPreviewMaxChars)
+            if (bioExpanded || CountGraphemes(bio) <= BioPreviewMaxChars)
                 return bio;
-            // Trunca em um espaço próximo do limite para evitar cortar no meio de uma palavra.
-            var cut = bio.LastIndexOf(' ', BioPreviewMaxChars - 1);
-            if (cut < BioPreviewMaxChars / 2) cut = BioPreviewMaxChars;
+
+            // Trunca contando grapheme clusters (não code units), evitando partir emoji ao meio.
+            var enumerator = System.Globalization.StringInfo.GetTextElementEnumerator(bio);
+            var lastSpaceCodeIndex = -1;
+            var lastSpaceGrapheme = -1;
+            var cutCodeIndex = -1;
+            var graphemes = 0;
+
+            while (enumerator.MoveNext())
+            {
+                if (graphemes >= BioPreviewMaxChars)
+                {
+                    cutCodeIndex = enumerator.ElementIndex;
+                    break;
+                }
+                var element = (string)enumerator.Current;
+                if (element == " ")
+                {
+                    lastSpaceCodeIndex = enumerator.ElementIndex;
+                    lastSpaceGrapheme = graphemes;
+                }
+                graphemes++;
+            }
+
+            if (cutCodeIndex < 0)
+                return bio; // texto cabe inteiro mesmo após contagem real
+
+            // Comparação em graphemes (não code units) para escolher o último espaço dentro da janela.
+            var cut = (lastSpaceGrapheme >= BioPreviewMaxChars / 2)
+                ? lastSpaceCodeIndex
+                : cutCodeIndex;
             return bio[..cut].TrimEnd() + "…";
         }
+    }
+
+    private static int CountGraphemes(string? text)
+    {
+        if (string.IsNullOrEmpty(text)) return 0;
+        var en = System.Globalization.StringInfo.GetTextElementEnumerator(text);
+        var count = 0;
+        while (en.MoveNext()) count++;
+        return count;
     }
 
     protected override async Task OnInitializedAsync()

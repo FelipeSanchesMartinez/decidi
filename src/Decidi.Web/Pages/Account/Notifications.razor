@@ -1,0 +1,181 @@
+@page "/notifications"
+@attribute [Authorize]
+@inject ApiClient Api
+@inject AppState State
+@inject NavigationManager Navigation
+@inject ToastService Toast
+
+<PageTitle>Notificações - decidi</PageTitle>
+
+<div class="container" style="max-width:780px;margin:0 auto;padding:2rem 1.5rem">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.5rem;flex-wrap:wrap;gap:0.75rem">
+        <h1 style="font-size:1.75rem;margin:0">Notificações</h1>
+        @if (allNotifications.Any(n => !n.IsRead))
+        {
+            <button type="button" class="btn btn-outline btn-sm" @onclick="MarkAllReadAsync" disabled="@markingAll">
+                @(markingAll ? "Marcando..." : "Marcar todas como lidas")
+            </button>
+        }
+    </div>
+    <p class="text-muted" style="margin-bottom:1.25rem">
+        Acompanhe propostas recebidas, atualizações de projetos e mensagens.
+    </p>
+
+    @if (loading)
+    {
+        <SkeletonCard Count="4" Lines="2" />
+    }
+    else if (!allNotifications.Any())
+    {
+        <EmptyState Title="Nenhuma notificação por aqui"
+                    Message="Quando alguém interagir com seus projetos ou propostas, você verá tudo organizado nesta tela.">
+            <Icon>
+                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--gray-300)" stroke-width="1.5">
+                    <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+                    <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+                </svg>
+            </Icon>
+        </EmptyState>
+    }
+    else
+    {
+        <FilterChips TValue="string"
+                     Options="@filterOptions"
+                     Value="@activeFilter"
+                     ValueChanged="OnFilterChanged"
+                     AriaLabel="Filtrar notificações" />
+
+        @if (!filteredNotifications.Any())
+        {
+            <EmptyState Title="Nada por aqui"
+                        Message="@(activeFilter == "unread" ? "Você está em dia — não há notificações não lidas." : "Nenhuma notificação para este filtro.")" />
+        }
+        else
+        {
+            <div class="notif-list">
+                @foreach (var n in filteredNotifications)
+                {
+                    <button type="button"
+                            class="notif-row @(!n.IsRead ? "unread" : "")"
+                            @onclick="() => OpenAsync(n)">
+                        <div class="notif-row-icon" aria-hidden="true">@GetIcon(n.Type)</div>
+                        <div class="notif-row-body">
+                            <div class="notif-row-title">@n.Title</div>
+                            <div class="notif-row-msg">@n.Message</div>
+                            <div class="notif-row-time">@FormatTime(n.CreatedAt)</div>
+                        </div>
+                        @if (!n.IsRead)
+                        {
+                            <span class="notif-row-dot" aria-label="Não lida"></span>
+                        }
+                    </button>
+                }
+            </div>
+        }
+    }
+</div>
+
+@code {
+    private List<NotificationDto> allNotifications = [];
+    private List<NotificationDto> filteredNotifications = [];
+    private bool loading = true;
+    private bool markingAll;
+    private string activeFilter = "all";
+
+    private List<FilterChips<string>.FilterOption> filterOptions = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var result = await Api.GetNotificationsAsync();
+            allNotifications = result?.ToList() ?? [];
+        }
+        catch
+        {
+            allNotifications = [];
+        }
+        BuildFilterOptions();
+        ApplyFilter();
+        loading = false;
+    }
+
+    private void BuildFilterOptions()
+    {
+        var unread = allNotifications.Count(n => !n.IsRead);
+        filterOptions =
+        [
+            new("Todas", "all", allNotifications.Count),
+            new("Não lidas", "unread", unread),
+        ];
+    }
+
+    private void ApplyFilter()
+    {
+        filteredNotifications = activeFilter switch
+        {
+            "unread" => allNotifications.Where(n => !n.IsRead).ToList(),
+            _ => allNotifications
+        };
+    }
+
+    private void OnFilterChanged(string value)
+    {
+        activeFilter = value;
+        ApplyFilter();
+    }
+
+    private async Task OpenAsync(NotificationDto n)
+    {
+        if (!n.IsRead)
+        {
+            try { await Api.MarkNotificationAsReadAsync(n.Id); } catch { }
+            n.IsRead = true;
+            State.DecrementUnreadCount();
+            BuildFilterOptions();
+            ApplyFilter();
+        }
+        if (!string.IsNullOrEmpty(n.Link))
+            Navigation.NavigateTo(n.Link);
+    }
+
+    private async Task MarkAllReadAsync()
+    {
+        if (markingAll) return;
+        markingAll = true;
+        try
+        {
+            await Api.MarkAllNotificationsAsReadAsync();
+            foreach (var n in allNotifications) n.IsRead = true;
+            State.SetUnreadCount(0);
+            BuildFilterOptions();
+            ApplyFilter();
+            Toast.ShowSuccess("Todas as notificações foram marcadas como lidas.");
+        }
+        catch
+        {
+            // Toast já vem do handler global; mantém estado para o usuário tentar de novo.
+        }
+        markingAll = false;
+    }
+
+    private static string GetIcon(string type) => type switch
+    {
+        "proposal_received" => "\U0001F4E9",
+        "proposal_accepted" => "✅",
+        "proposal_rejected" => "❌",
+        "chat_message" => "\U0001F4AC",
+        _ => "\U0001F514"
+    };
+
+    private static string FormatTime(DateTime dt)
+    {
+        var local = dt.ToLocalTime();
+        var diff = DateTime.Now - local;
+        if (diff.TotalMinutes < 1) return "agora";
+        if (diff.TotalMinutes < 60) return $"há {(int)diff.TotalMinutes} min";
+        if (diff.TotalHours < 24) return $"há {(int)diff.TotalHours} h";
+        if (diff.TotalDays < 7) return $"há {(int)diff.TotalDays} d";
+        return local.ToString("dd/MM/yyyy 'às' HH:mm");
+    }
+}

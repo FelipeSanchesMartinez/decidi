@@ -42,6 +42,69 @@
         em sua conta. Responderemos em até 15 dias.
     </p>
 
+    <p>
+        Você pode usar o formulário abaixo para montar a solicitação automaticamente —
+        ele apenas abre seu app de e-mail com tudo preenchido. Nenhum dado é enviado
+        à decidi até você confirmar o envio no seu cliente de e-mail.
+    </p>
+
+    <div class="card lgpd-request-form" style="padding:1.5rem;margin-top:1rem">
+        <h3 style="font-size:1.05rem;margin:0 0 0.75rem">Montar solicitação LGPD</h3>
+
+        <div class="form-group">
+            <label>Qual direito você quer exercer? <span style="color:var(--error)">*</span></label>
+            <select class="form-control" @bind="rightSelected">
+                <option value="">Selecione...</option>
+                <option value="confirmacao">Confirmação e acesso aos meus dados</option>
+                <option value="correcao">Correção de dados incompletos ou inexatos</option>
+                <option value="portabilidade">Portabilidade (receber meus dados em formato estruturado)</option>
+                <option value="eliminacao">Eliminação de dados</option>
+                <option value="anonimizacao">Anonimização ou bloqueio</option>
+                <option value="compartilhamento">Informação sobre compartilhamento</option>
+                <option value="revogacao">Revogação do consentimento</option>
+                <option value="oposicao">Oposição ao tratamento</option>
+                <option value="outro">Outro</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label>E-mail cadastrado na sua conta <span style="color:var(--error)">*</span></label>
+            <input class="form-control" type="email"
+                   @bind="accountEmail" @bind:event="oninput"
+                   placeholder="seu@email.com"
+                   inputmode="email" autocomplete="email"
+                   autocapitalize="off" autocorrect="off" spellcheck="false" />
+            <span class="form-hint">Usamos isso só para identificar você no e-mail gerado.</span>
+        </div>
+
+        <div class="form-group">
+            <label>Detalhes adicionais (opcional)</label>
+            <textarea class="form-control" rows="4" maxlength="2000"
+                      @bind="details" @bind:event="oninput"
+                      placeholder="Se quiser, descreva mais sobre sua solicitação. Ex: 'preciso dos meus dados em formato CSV', 'corrigir o telefone para X'..."
+                      autocapitalize="sentences" autocorrect="on"></textarea>
+        </div>
+
+        @if (!string.IsNullOrEmpty(errorMessage))
+        {
+            <div class="alert alert-danger">@errorMessage</div>
+        }
+
+        <div style="display:flex;gap:0.6rem;flex-wrap:wrap;align-items:center">
+            <a href="@(IsValid ? MailtoLink : "#")"
+               class="btn btn-primary"
+               style="@(IsValid ? "" : "opacity:0.55")"
+               aria-disabled="@(IsValid ? "false" : "true")"
+               @onclick="HandleBuildClick"
+               @onclick:preventDefault="@(!IsValid)">
+                Abrir e-mail para dpo@decidi.com.br
+            </a>
+            <span class="text-sm text-muted">
+                O e-mail abre no seu app padrão — basta revisar e enviar.
+            </span>
+        </div>
+    </div>
+
     <h2>Encerramento de conta e dados remanescentes</h2>
     <p>
         Após o encerramento, podemos manter parte dos seus dados para cumprir obrigações
@@ -56,3 +119,65 @@
         (ANPD): <a href="https://www.gov.br/anpd" target="_blank" rel="noopener">gov.br/anpd</a>.
     </p>
 </div>
+
+@code {
+    private string rightSelected = string.Empty;
+    private string accountEmail = string.Empty;
+    private string details = string.Empty;
+    private string? errorMessage;
+
+    private static readonly Dictionary<string, string> RightLabels = new()
+    {
+        ["confirmacao"] = "Confirmação e acesso aos meus dados",
+        ["correcao"] = "Correção de dados incompletos ou inexatos",
+        ["portabilidade"] = "Portabilidade dos meus dados",
+        ["eliminacao"] = "Eliminação de dados",
+        ["anonimizacao"] = "Anonimização ou bloqueio",
+        ["compartilhamento"] = "Informação sobre compartilhamento",
+        ["revogacao"] = "Revogação do consentimento",
+        ["oposicao"] = "Oposição ao tratamento",
+        ["outro"] = "Outra solicitação relacionada à LGPD",
+    };
+
+    private bool IsValid =>
+        !string.IsNullOrWhiteSpace(rightSelected)
+        && !string.IsNullOrWhiteSpace(accountEmail)
+        && accountEmail.Contains('@');
+
+    private string MailtoLink
+    {
+        get
+        {
+            if (!IsValid) return "#";
+
+            var label = RightLabels.TryGetValue(rightSelected, out var l)
+                ? l
+                : "Solicitação LGPD";
+
+            var subject = $"[LGPD] {label}";
+            var body =
+$@"Olá, equipe de Proteção de Dados da decidi.
+
+Sou titular dos dados pessoais associados à conta com o e-mail: {accountEmail.Trim()}
+
+Solicito o exercício do seguinte direito previsto na LGPD (Lei 13.709/2018):
+- {label}
+
+Detalhes adicionais:
+{(string.IsNullOrWhiteSpace(details) ? "(sem detalhes adicionais)" : details.Trim())}
+
+Aguardo retorno no prazo de até 15 dias previsto em lei.
+
+Atenciosamente.";
+
+            return $"mailto:dpo@decidi.com.br?subject={Uri.EscapeDataString(subject)}&body={Uri.EscapeDataString(body)}";
+        }
+    }
+
+    private void HandleBuildClick()
+    {
+        errorMessage = IsValid
+            ? null
+            : "Preencha o direito desejado e seu e-mail antes de gerar a solicitação.";
+    }
+}
