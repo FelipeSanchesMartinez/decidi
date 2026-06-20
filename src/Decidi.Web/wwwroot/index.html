@@ -59,8 +59,8 @@
     </script>
 
     <!-- Theme -->
-    <meta name="theme-color" content="#0B6B4F" />
-    <meta name="msapplication-TileColor" content="#0B6B4F" />
+    <meta name="theme-color" content="#3D5A4A" />
+    <meta name="msapplication-TileColor" content="#3D5A4A" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="decidi" />
@@ -83,22 +83,22 @@
             min-height: 100vh;
             gap: 1.5rem;
             font-family: 'Inter', -apple-system, sans-serif;
-            background: #FFFFFF;
+            background: #FAF7F2;
         }
         .app-loading-logo {
-            font-family: 'Nunito Sans', sans-serif;
-            font-size: 2.5rem;
-            font-weight: 800;
-            background: linear-gradient(90deg, #0B6B4F 0%, #18A7A3 45%, #1E56F2 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
+            font-family: 'Fraunces', Georgia, serif;
+            font-size: 2.8rem;
+            font-weight: 600;
+            color: #243429;
+            letter-spacing: -0.035em;
+            font-variation-settings: "opsz" 144, "SOFT" 100;
         }
+        .app-loading-logo .dot { color: #C2664D; }
         .app-loading-bar {
-            width: 200px;
-            height: 3px;
-            background: #E5E7EB;
-            border-radius: 3px;
+            width: 180px;
+            height: 2px;
+            background: #E5DDD0;
+            border-radius: 2px;
             overflow: hidden;
         }
         .app-loading-bar::after {
@@ -106,17 +106,18 @@
             display: block;
             width: 40%;
             height: 100%;
-            background: linear-gradient(90deg, #0B6B4F 0%, #18A7A3 45%, #1E56F2 100%);
-            border-radius: 3px;
-            animation: app-load 1.5s ease-in-out infinite;
+            background: #3D5A4A;
+            border-radius: 2px;
+            animation: app-load 1.4s ease-in-out infinite;
         }
         @keyframes app-load {
             0% { transform: translateX(-100%); }
             100% { transform: translateX(350%); }
         }
         .app-loading-text {
-            font-size: 0.875rem;
-            color: #6B7280;
+            font-size: 0.85rem;
+            color: #5C6760;
+            letter-spacing: 0.02em;
         }
     </style>
 </head>
@@ -124,7 +125,7 @@
 <body>
     <div id="app">
         <div class="app-loading">
-            <div class="app-loading-logo">decidi</div>
+            <div class="app-loading-logo">decidi<span class="dot">.</span></div>
             <div class="app-loading-bar"></div>
             <div class="app-loading-text">Carregando...</div>
         </div>
