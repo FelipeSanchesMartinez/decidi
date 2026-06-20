@@ -481,3 +481,7 @@ $RECYCLE.BIN/
 # Vim temporary swap files
 *.swp
 .screens/
+
+# Claude Code session artifacts (local only)
+.claude/
+.screens/
