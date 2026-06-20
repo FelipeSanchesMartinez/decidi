@@ -2,9 +2,11 @@ using Decidi.Application.Interfaces;
 using Decidi.Application.Services;
 using Decidi.Domain.Entities;
 using Decidi.Domain.Interfaces;
+using Decidi.Domain.Payments;
 using Decidi.Infrastructure.Data;
 using Decidi.Infrastructure.Repositories;
 using Decidi.Infrastructure.Services;
+using Decidi.Infrastructure.Services.Asaas;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -63,6 +65,13 @@ public static class DependencyInjection
             client.BaseAddress = new Uri("https://api.resend.com/");
             client.Timeout = TimeSpan.FromSeconds(10);
         });
+
+        // Payment gateway — Asaas. Sandbox por padrão; troca-se para a URL
+        // de produção em appsettings quando a chave de prod estiver pronta.
+        services.AddOptions<AsaasOptions>()
+            .Bind(configuration.GetSection(AsaasOptions.SectionName));
+        services.AddHttpClient<IPaymentGateway, AsaasPaymentGateway>(
+            AsaasPaymentGateway.ConfigureHttpClient);
         services.AddSingleton<ISanitizer, InputSanitizer>();
         services.AddSingleton<IContactGuard, ContactGuard>();
         services.AddScoped<IPlatformFeeService, PlatformFeeService>();
