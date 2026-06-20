@@ -244,6 +244,8 @@
     ButtonClass="btn-success"
     OnConfirm="ConfirmAcceptProposal" />
 
+<PixChargeDialog @ref="pixDialog" Charge="@pixCharge" OnPaidClicked="GoToMilestoneSetup" />
+
 <ConfirmDialog @ref="rejectDialog"
     Title="Rejeitar proposta"
     Message="@rejectMessage"
@@ -498,14 +500,33 @@
         rejectDialog.Show();
     }
 
+    private PixChargeDialog? pixDialog;
+    private PixChargeDto? pixCharge;
+
     private async Task ConfirmAcceptProposal()
     {
         var result = await Api.AcceptProposalAsync(pendingProposalId);
         if (result is null) return; // handler global já toastou o erro
 
+        // Gateway configurado → mostra QR PIX e só navega quando o cliente
+        // confirmar que pagou. Modo dev (sem chave) → vai direto pro setup.
+        if (result.PixCharge is not null && pixDialog is not null)
+        {
+            pixCharge = result.PixCharge;
+            StateHasChanged();
+            pixDialog.Show();
+            return;
+        }
+
+        await GoToMilestoneSetup();
+    }
+
+    private Task GoToMilestoneSetup()
+    {
         // Próximo passo natural: configurar as etapas de pagamento. O wizard
         // pula automaticamente se o projeto já tiver milestones criadas.
         Navigation.NavigateTo($"/projects/{Id}/milestones/setup");
+        return Task.CompletedTask;
     }
 
     private async Task ConfirmRejectProposal()

@@ -106,8 +106,8 @@ public class ApiClient(HttpClient http)
     public Task<IEnumerable<ProposalDto>?> GetMyProposalsAsync()
         => http.GetFromJsonAsync<IEnumerable<ProposalDto>>("api/proposals/my");
 
-    public Task<ProposalDto?> AcceptProposalAsync(Guid id)
-        => http.PutAsJsonAsync($"api/proposals/{id}/accept", new { }).ParseAsync<ProposalDto>();
+    public Task<AcceptProposalResult?> AcceptProposalAsync(Guid id)
+        => http.PutAsJsonAsync($"api/proposals/{id}/accept", new { }).ParseAsync<AcceptProposalResult>();
 
     public Task<ProposalDto?> RejectProposalAsync(Guid id)
         => http.PutAsJsonAsync($"api/proposals/{id}/reject", new { }).ParseAsync<ProposalDto>();

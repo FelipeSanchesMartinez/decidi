@@ -1,0 +1,90 @@
+@using Decidi.Web.Models
+
+@if (IsOpen && Charge is not null)
+{
+    <div class="pix-overlay" @onclick="HandleBackdrop">
+        <div class="pix-modal" @onclick:stopPropagation="true" role="dialog" aria-modal="true">
+            <button type="button" class="pix-close" @onclick="Close" aria-label="Fechar">&times;</button>
+            <h2>Pague R$ @Charge.Amount.ToString("N2") para finalizar</h2>
+            <p class="pix-sub">
+                Esta é a taxa de contratação. Escaneie o QR Code ou copie o código PIX —
+                assim que o pagamento for confirmado, você será notificado e a proposta
+                fica oficialmente aceita.
+            </p>
+
+            <div class="pix-qr-wrap">
+                <img src="data:image/png;base64,@Charge.QrCodeBase64" alt="QR Code PIX" />
+            </div>
+
+            <div class="pix-copy">
+                <label>PIX copia-e-cola</label>
+                <textarea readonly @ref="copyArea">@Charge.CopyPaste</textarea>
+                <button type="button" class="btn btn-secondary btn-sm" @onclick="CopyToClipboard">
+                    @(copied ? "Copiado!" : "Copiar código")
+                </button>
+            </div>
+
+            <p class="pix-expires">
+                Expira em @Charge.ExpiresAt.ToLocalTime().ToString("dd/MM 'às' HH:mm")
+            </p>
+
+            <div class="pix-actions">
+                <button type="button" class="btn btn-primary btn-lg" @onclick="HandlePaid">
+                    Já paguei, continuar
+                </button>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public PixChargeDto? Charge { get; set; }
+    [Parameter] public EventCallback OnPaidClicked { get; set; }
+
+    [Inject] private IJSRuntime JS { get; set; } = default!;
+
+    public bool IsOpen { get; private set; }
+    private bool copied;
+    private ElementReference copyArea;
+
+    public void Show()
+    {
+        IsOpen = true;
+        copied = false;
+        StateHasChanged();
+    }
+
+    public void Close()
+    {
+        IsOpen = false;
+        StateHasChanged();
+    }
+
+    private void HandleBackdrop()
+    {
+        // Não fecha por backdrop click — pagamento é etapa crítica, o cliente
+        // precisa clicar conscientemente em "Já paguei" ou no X.
+    }
+
+    private async Task CopyToClipboard()
+    {
+        if (Charge is null) return;
+        try
+        {
+            await JS.InvokeVoidAsync("navigator.clipboard.writeText", Charge.CopyPaste);
+            copied = true;
+            StateHasChanged();
+        }
+        catch
+        {
+            // Browsers antigos sem Clipboard API — usuário copia manualmente.
+        }
+    }
+
+    private async Task HandlePaid()
+    {
+        Close();
+        if (OnPaidClicked.HasDelegate)
+            await OnPaidClicked.InvokeAsync();
+    }
+}

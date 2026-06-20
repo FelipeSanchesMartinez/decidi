@@ -31,6 +31,8 @@ public sealed class AsaasPaymentGateway : IPaymentGateway
 
     public string ProviderName => "asaas";
 
+    public bool IsAvailable => _opts.IsConfigured;
+
     public AsaasPaymentGateway(
         HttpClient http,
         IOptions<AsaasOptions> opts,
@@ -266,9 +268,4 @@ public sealed class AsaasPaymentGateway : IPaymentGateway
     }
 }
 
-/// <summary>Erro vindo do gateway de pagamento. Embrulha problemas HTTP, parsing e config.</summary>
-public sealed class PaymentGatewayException : Exception
-{
-    public PaymentGatewayException(string message) : base(message) { }
-    public PaymentGatewayException(string message, Exception inner) : base(message, inner) { }
-}
+// PaymentGatewayException vive em Decidi.Domain.Payments.

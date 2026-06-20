@@ -5,8 +5,9 @@ namespace Decidi.Domain.Entities;
 
 /// <summary>
 /// Registra uma transação financeira de contratação: cobrança do cliente,
-/// retenção em escrow e liberação para o profissional.
-/// Sem integração de gateway ainda — apenas modelagem persistida.
+/// retenção em escrow e liberação para o profissional. GatewayRef aponta
+/// para o identificador externo no provedor (ex: Asaas payment id) — usado
+/// para reconciliar com webhook e ações de estorno.
 /// </summary>
 public class Payment : BaseEntity
 {

@@ -56,13 +56,13 @@ public class ProposalsController(IProposalService proposalService) : ControllerB
 
     [Authorize(Policy = "EmailConfirmed")]
     [HttpPut("{id:guid}/accept")]
-    public async Task<ActionResult<ProposalDto>> Accept(Guid id)
+    public async Task<ActionResult<AcceptProposalResult>> Accept(Guid id)
     {
         try
         {
             var clientId = User.GetUserId();
-            var proposal = await proposalService.AcceptAsync(id, clientId);
-            return Ok(proposal);
+            var result = await proposalService.AcceptAsync(id, clientId);
+            return Ok(result);
         }
         catch (KeyNotFoundException)
         {
@@ -75,6 +75,12 @@ public class ProposalsController(IProposalService proposalService) : ControllerB
         catch (InvalidOperationException ex)
         {
             return BadRequest(new { message = ex.Message });
+        }
+        catch (Decidi.Domain.Payments.PaymentGatewayException ex)
+        {
+            // Gateway fora do ar / chave inválida — tx já foi revertida, então
+            // a proposta NÃO foi aceita. Mostra erro técnico mais claro.
+            return StatusCode(502, new { message = "Falha ao gerar cobrança PIX: " + ex.Message });
         }
     }
 

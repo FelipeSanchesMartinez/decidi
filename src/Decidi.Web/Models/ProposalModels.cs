@@ -35,3 +35,22 @@ public class ProposalDto
     public Guid ProjectId { get; set; }
     public string ProjectTitle { get; set; } = string.Empty;
 }
+
+/// <summary>
+/// Espelho do AcceptProposalResult do backend. PixCharge vem null quando o
+/// gateway está em modo dev (sem chave) — o front mostra só a confirmação.
+/// </summary>
+public class AcceptProposalResult
+{
+    public ProposalDto Proposal { get; set; } = new();
+    public PixChargeDto? PixCharge { get; set; }
+}
+
+public class PixChargeDto
+{
+    public string GatewayRef { get; set; } = string.Empty;
+    public string QrCodeBase64 { get; set; } = string.Empty;
+    public string CopyPaste { get; set; } = string.Empty;
+    public decimal Amount { get; set; }
+    public DateTime ExpiresAt { get; set; }
+}

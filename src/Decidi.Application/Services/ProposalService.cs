@@ -1,11 +1,14 @@
+using Decidi.Application.DTOs.Payments;
 using Decidi.Application.DTOs.Proposals;
 using Decidi.Application.Interfaces;
 using Decidi.Application.Mappings;
 using Decidi.Domain.Entities;
 using Decidi.Domain.Enums;
 using Decidi.Domain.Interfaces;
+using Decidi.Domain.Payments;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 
 namespace Decidi.Application.Services;
 
@@ -19,6 +22,8 @@ public class ProposalService(
     IMarketplaceMailer mailer,
     ISanitizer sanitizer,
     IConfiguration configuration,
+    IPaymentGateway paymentGateway,
+    ILogger<ProposalService> logger,
     IUnitOfWork unitOfWork) : IProposalService
 {
     private string WebBaseUrl => configuration["WebBaseUrl"] ?? "https://decidi.com.br";
@@ -79,7 +84,7 @@ public class ProposalService(
         return proposals.Select(p => p.ToDto());
     }
 
-    public async Task<ProposalDto> AcceptAsync(Guid proposalId, string clientId)
+    public async Task<AcceptProposalResult> AcceptAsync(Guid proposalId, string clientId)
     {
         const int maxAttempts = 3;
         for (var attempt = 1; ; attempt++)
@@ -102,7 +107,7 @@ public class ProposalService(
         }
     }
 
-    private async Task<ProposalDto> AcceptInternalAsync(Guid proposalId, string clientId)
+    private async Task<AcceptProposalResult> AcceptInternalAsync(Guid proposalId, string clientId)
     {
         var proposal = await proposalRepository.GetProposalWithDetailsAsync(proposalId)
             ?? throw new KeyNotFoundException("Proposta não encontrada.");
@@ -119,6 +124,7 @@ public class ProposalService(
 
         var fees = await platformFeeService.GetCurrentAsync();
 
+        PixChargeDto? pixCharge = null;
         await using var tx = await unitOfWork.BeginTransactionAsync();
         try
         {
@@ -171,6 +177,13 @@ public class ProposalService(
             await paymentRepository.AddAsync(payment);
 
             proposalRepository.Update(proposal);
+
+            // Cobrança PIX da taxa do cliente — destrava a contratação. O valor
+            // do trabalho em si é cobrado milestone-a-milestone numa onda futura.
+            // Em ambientes sem chave do gateway (dev), pulamos a cobrança e o
+            // Payment fica sem GatewayRef — útil para iteração local.
+            pixCharge = await TryCreateClientFeeChargeAsync(payment, proposal, fees.ClientFee);
+
             await unitOfWork.SaveChangesAsync();
             await tx.CommitAsync();
         }
@@ -188,7 +201,43 @@ public class ProposalService(
 
         await mailer.ProposalAcceptedAsync(proposal.FreelancerId, proposal.Project.Title, proposal.ProjectId, WebBaseUrl);
 
-        return proposal.ToDto();
+        return new AcceptProposalResult(proposal.ToDto(), pixCharge);
+    }
+
+    /// <summary>
+    /// Cria a cobrança PIX da taxa fixa do cliente e atualiza o Payment com o
+    /// GatewayRef. Falha do gateway é fatal — relança e o tx faz rollback.
+    /// Em modo dev (sem chave) retorna null e a contratação segue sem cobrança.
+    /// </summary>
+    private async Task<PixChargeDto?> TryCreateClientFeeChargeAsync(
+        Payment payment, Proposal proposal, decimal clientFeeAmount)
+    {
+        if (!paymentGateway.IsAvailable)
+        {
+            logger.LogWarning(
+                "Payment gateway indisponível — aceite da proposta {ProposalId} segue sem cobrança PIX.",
+                proposal.Id);
+            return null;
+        }
+
+        var charge = await paymentGateway.CreatePixChargeAsync(new ChargeRequest(
+            PaymentId: payment.Id,
+            Amount: clientFeeAmount,
+            CustomerName: proposal.Project.Client.FullName,
+            CustomerEmail: proposal.Project.Client.Email ?? "",
+            CustomerCpfCnpj: null, // KYC vem em onda futura — Asaas aceita PIX sem CPF
+            Description: $"Taxa de contratação — projeto \"{proposal.Project.Title}\"",
+            DueDate: DateTime.UtcNow.AddDays(2)));
+
+        payment.GatewayRef = charge.ChargeId;
+        paymentRepository.Update(payment);
+
+        return new PixChargeDto(
+            GatewayRef: charge.ChargeId,
+            QrCodeBase64: charge.PixQrCodeBase64,
+            CopyPaste: charge.PixCopyPaste,
+            Amount: clientFeeAmount,
+            ExpiresAt: charge.PixExpiresAt);
     }
 
     public async Task<ProposalDto> RejectAsync(Guid proposalId, string clientId)

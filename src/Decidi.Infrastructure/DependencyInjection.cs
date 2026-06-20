@@ -58,6 +58,7 @@ public static class DependencyInjection
         services.AddScoped<IReviewService, ReviewService>();
         services.AddScoped<ISkillService, SkillService>();
         services.AddScoped<INotificationService, NotificationService>();
+        services.AddScoped<IPaymentEventHandler, PaymentEventHandler>();
         services.AddOptions<ResendOptions>()
             .Bind(configuration.GetSection(ResendOptions.SectionName));
         services.AddHttpClient<IEmailService, ResendEmailService>(client =>

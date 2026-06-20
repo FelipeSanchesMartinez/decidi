@@ -11,6 +11,13 @@ public interface IPaymentGateway
     string ProviderName { get; }
 
     /// <summary>
+    /// True quando o gateway tem chave/URL configurados. Quando false, o
+    /// serviço chamador deve pular a etapa de cobrança e seguir em modo
+    /// simulação — útil para ambientes de dev sem chave de sandbox.
+    /// </summary>
+    bool IsAvailable { get; }
+
+    /// <summary>
     /// Cria uma cobrança PIX para o cliente. O resultado traz QR Code,
     /// copia-cola e o identificador externo (GatewayRef) que persistimos
     /// no Payment.
@@ -109,4 +116,11 @@ public enum GatewayChargeStatus
     Overdue = 4,
     Refunded = 5,
     Failed = 6
+}
+
+/// <summary>Erro vindo do gateway de pagamento. Embrulha problemas HTTP, parsing e config.</summary>
+public sealed class PaymentGatewayException : Exception
+{
+    public PaymentGatewayException(string message) : base(message) { }
+    public PaymentGatewayException(string message, Exception inner) : base(message, inner) { }
 }
