@@ -295,40 +295,57 @@ select:focus:not(:focus-visible) { outline: none; }
    ===================================================================== */
 .navbar {
     position: sticky; top: 0; z-index: 100;
-    background: rgba(255,255,255,0.92);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-    border-bottom: 1px solid rgba(226,232,240,0.6);
-    padding: 0.5rem 0;
+    background: rgba(250,247,242,0.88); /* areia translucida */
+    backdrop-filter: blur(14px) saturate(140%);
+    -webkit-backdrop-filter: blur(14px) saturate(140%);
+    border-bottom: 1px solid var(--hairline);
+    padding: 0.85rem 0;
 }
 .navbar-content { display: flex; align-items: center; justify-content: space-between; }
 /* "decidi." — marca tipográfica. Fraunces pesado, musgo profundo, com
    o ponto final em terracota: assinatura sem precisar de degradê. */
 .navbar-brand {
     font-family: var(--font-display);
-    font-size: 1.9rem;
+    font-size: 2rem;
     font-weight: 700;
     color: var(--brand-deep);
     text-decoration: none;
-    letter-spacing: -0.035em;
+    letter-spacing: -0.04em;
     line-height: 1;
     font-variation-settings: "opsz" 144, "SOFT" 80;
     display: inline-flex;
     align-items: baseline;
+    transition: opacity var(--transition-fast);
 }
+.navbar-brand:hover { opacity: 0.7; color: var(--brand-deep); }
 .navbar-brand::after {
     content: ".";
     color: var(--accent);
     margin-left: 0.05em;
 }
-.navbar-links { display: flex; align-items: center; gap: 0.25rem; }
+/* Links com sublinhado animado em vez de bg colorido — mais editorial. */
+.navbar-links { display: flex; align-items: center; gap: 0.4rem; }
 .navbar-links a {
-    color: var(--gray-600); text-decoration: none;
-    font-size: 0.88rem; font-weight: 500;
-    padding: 0.5rem 0.875rem; border-radius: var(--radius-sm);
-    transition: all 0.15s;
+    color: var(--gray-700); text-decoration: none;
+    font-family: var(--font-body);
+    font-size: 0.92rem; font-weight: 500;
+    padding: 0.5rem 0.85rem; border-radius: var(--radius-sm);
+    transition: color 0.15s;
+    position: relative;
 }
-.navbar-links a:hover { color: var(--brand-teal); background: var(--gray-50); }
+.navbar-links a:not(.btn)::after {
+    content: '';
+    position: absolute; left: 0.85rem; right: 0.85rem; bottom: 0.35rem;
+    height: 1px;
+    background: var(--accent);
+    transform: scaleX(0);
+    transform-origin: left;
+    transition: transform 0.2s var(--ease-out);
+}
+.navbar-links a:not(.btn):hover { color: var(--brand-deep); background: transparent; }
+.navbar-links a:not(.btn):hover::after { transform: scaleX(1); }
+/* Botões dentro da navbar têm hover próprio — não aplica sublinhado animado. */
+.navbar-links .btn { padding: 0.55rem 1.15rem; font-size: 0.88rem; }
 
 /* ── Notification Bell ────────────────────────────────────────────── */
 .nav-bell {
@@ -442,18 +459,24 @@ select:focus:not(:focus-visible) { outline: none; }
     display: none; flex-direction: column; gap: 5px;
     background: none; border: none; cursor: pointer; padding: 0.5rem;
 }
-.navbar-toggle span { width: 22px; height: 2px; background: var(--gray-700); border-radius: 2px; transition: 0.2s; }
+.navbar-toggle span { width: 22px; height: 2px; background: var(--brand-deep); border-radius: 2px; transition: 0.2s; }
 
 .navbar-mobile {
-    display: none; flex-direction: column; gap: 0.25rem;
-    padding: 0.75rem 1.5rem 1rem; border-top: 1px solid var(--gray-100);
+    display: none; flex-direction: column; gap: 0;
+    padding: 0.5rem 1.5rem 1rem; border-top: 1px solid var(--hairline);
 }
 .navbar-mobile a {
-    color: var(--gray-700); text-decoration: none;
-    font-size: 0.95rem; padding: 0.625rem 0.75rem;
-    border-radius: var(--radius-sm); transition: background 0.15s;
+    color: var(--brand-deep); text-decoration: none;
+    font-family: var(--font-body);
+    font-size: 1rem; font-weight: 500;
+    padding: 0.85rem 0.25rem;
+    border-radius: 0;
+    border-bottom: 1px solid var(--hairline);
+    transition: color 0.15s;
 }
-.navbar-mobile a:hover { background: var(--gray-50); }
+.navbar-mobile a:last-child { border-bottom: 0; }
+.navbar-mobile a:hover { background: transparent; color: var(--accent-deep); }
+.navbar-mobile .btn { margin-top: 0.75rem; border-bottom: 0; }
 
 @media (max-width: 768px) {
     .navbar-links { display: none; }
@@ -1175,37 +1198,83 @@ select.form-control { appearance: auto; }
 /* =====================================================================
    FOOTER
    ===================================================================== */
+/* Soft Premium: footer claro em vez de bloco escuro. Mantém o ritmo da
+   landing toda clara e o ponto terracota da marca aparece de novo. */
 .footer {
-    background: var(--gray-900); color: rgba(255,255,255,0.6);
-    padding: 4rem 0 0; margin-top: auto; font-size: 0.875rem;
+    background: var(--surface-soft);
+    color: var(--gray-700);
+    padding: 5rem 0 0;
+    margin-top: auto;
+    font-size: 0.9rem;
+    border-top: 1px solid var(--hairline);
 }
-.footer-grid { display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; gap: 2rem; padding-bottom: 2.5rem; }
-.footer-brand p { margin-top: 0.75rem; line-height: 1.7; }
+.footer-grid {
+    display: grid;
+    grid-template-columns: 2fr 1fr 1fr 1fr 1fr;
+    gap: 2.5rem 2rem;
+    padding-bottom: 3.5rem;
+}
+.footer-brand p {
+    margin-top: 1rem;
+    line-height: 1.7;
+    color: var(--gray-600);
+    max-width: 320px;
+    font-size: 0.92rem;
+}
 .footer-logo {
-    font-family: var(--font-display); font-size: 1.6rem; font-weight: 900;
-    background: var(--gradient); -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent; background-clip: text;
+    font-family: var(--font-display);
+    font-size: 2rem;
+    font-weight: 700;
+    color: var(--brand-deep);
+    letter-spacing: -0.04em;
+    line-height: 1;
+    font-variation-settings: "opsz" 144, "SOFT" 80;
+    display: inline-flex;
+    align-items: baseline;
+}
+.footer-logo::after {
+    content: '.';
+    color: var(--accent);
+    margin-left: 0.05em;
 }
 .footer-links h4 {
-    font-family: var(--font-display); color: var(--white);
-    font-size: 0.85rem; font-weight: 700; margin-bottom: 0.75rem;
-    text-transform: uppercase; letter-spacing: 0.04em;
+    font-family: var(--font-body);
+    color: var(--accent-deep);
+    font-size: 0.7rem;
+    font-weight: 700;
+    margin-bottom: 1rem;
+    text-transform: uppercase;
+    letter-spacing: 0.18em;
 }
 .footer-links a {
-    display: block; color: rgba(255,255,255,0.5);
-    margin-bottom: 0.5rem; font-size: 0.85rem; transition: color 0.2s;
+    display: block;
+    color: var(--gray-600);
+    margin-bottom: 0.55rem;
+    font-size: 0.92rem;
+    transition: color 0.15s;
+    font-family: var(--font-body);
 }
-.footer-links a:hover { color: var(--white); }
+.footer-links a:hover { color: var(--brand-deep); text-decoration: underline; text-decoration-color: var(--accent); text-underline-offset: 0.18em; }
 .footer-bottom {
-    border-top: 1px solid rgba(255,255,255,0.08);
-    padding: 1.25rem 0; text-align: center;
-    font-size: 0.8rem; color: rgba(255,255,255,0.3);
+    border-top: 1px solid var(--hairline);
+    padding: 1.75rem 0;
+    text-align: center;
+    font-size: 0.85rem;
+    color: var(--gray-500);
 }
 .footer-bottom .footer-contact {
-    margin-top: 0.4rem; font-size: 0.75rem;
+    margin-top: 0.5rem;
+    font-size: 0.8rem;
+    color: var(--gray-500);
 }
-@media (max-width: 768px) { .footer-grid { grid-template-columns: 1fr 1fr; } }
-@media (max-width: 480px) { .footer-grid { grid-template-columns: 1fr; } }
+@media (max-width: 1024px) {
+    .footer-grid { grid-template-columns: 1fr 1fr 1fr; }
+    .footer-brand { grid-column: 1 / -1; }
+}
+@media (max-width: 640px) {
+    .footer-grid { grid-template-columns: 1fr 1fr; gap: 2rem 1.5rem; }
+    .footer-brand { grid-column: 1 / -1; }
+}
 
 /* ── Legal pages ─────────────────────────────────────────────────── */
 .legal-page {
